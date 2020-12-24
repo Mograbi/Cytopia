@@ -9,6 +9,7 @@
 #include "LOG.hxx"
 #include "Exception.hxx"
 #include "Settings.hxx"
+#include "GameStates.hxx"
 
 #ifdef MICROPROFILE_ENABLED
 #include "microprofile.h"
@@ -34,7 +35,11 @@ void Sprite::render() const
         SDL_SetTextureColorMod(m_SpriteData[currentLayer].texture, highlightColor.r, highlightColor.g, highlightColor.b);
       }
 
-      if (currentLayer == Layer::ZONE)
+      if (GameStates::instance().layerEditMode == LayerEditMode::BLUEPRINT && currentLayer != Layer::BLUEPRINT && currentLayer != Layer::UNDERGROUND)
+      {
+        SDL_SetTextureAlphaMod(m_SpriteData[currentLayer].texture, 80);
+      }
+      else
       {
         SDL_SetTextureAlphaMod(m_SpriteData[currentLayer].texture, m_SpriteData[currentLayer].alpha);
       }
@@ -55,17 +60,14 @@ void Sprite::render() const
         SDL_SetTextureColorMod(m_SpriteData[currentLayer].texture, 255, 255, 255);
       }
 
-      if (currentLayer == Layer::ZONE)
-      {
-        SDL_SetTextureAlphaMod(m_SpriteData[currentLayer].texture, 255);
-      }
+      SDL_SetTextureAlphaMod(m_SpriteData[currentLayer].texture, 255);
     }
   }
 }
 
 void Sprite::refresh(const Layer &layer)
 {
-  if (m_currentZoomLevel != Camera::zoomLevel || m_needsRefresh)
+  if (m_currentZoomLevel != Camera::instance().zoomLevel() || m_needsRefresh)
   {
     for (auto currentLayer : allLayersOrdered)
     {
@@ -75,7 +77,7 @@ void Sprite::refresh(const Layer &layer)
         {
           continue;
         }
-        m_currentZoomLevel = Camera::zoomLevel;
+        m_currentZoomLevel = Camera::instance().zoomLevel();
         int spriteSheetHeight = 0;
         SDL_QueryTexture(m_SpriteData[currentLayer].texture, nullptr, nullptr, nullptr, &spriteSheetHeight);
         // we need to offset the cliprect.y coodinate, because we've moved the "originpoint" for drawing the sprite to the screen on the bottom.
