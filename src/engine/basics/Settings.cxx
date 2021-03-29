@@ -12,7 +12,9 @@ Settings::Settings() { readFile(); }
 
 Settings::~Settings()
 {
-  LOG(LOG_DEBUG) << "Destroying Setttings";
+  debug_scope {
+    LOG(LOG_DEBUG) << "Destroying Setttings";
+  }
 }
 
 void Settings::readFile()
@@ -64,6 +66,8 @@ void Settings::parse_args(int argc, char** argv) {
     if(patch[key].is_discarded()) {
       patch[key] = value;
     }
+
+    ++argv;
   }
   /**
    *  @todo This is a lazy implementation... We probably should get rid of singleton 

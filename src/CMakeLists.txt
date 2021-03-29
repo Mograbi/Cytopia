@@ -9,19 +9,26 @@ set(SOURCE_FILES
         util/Meta.hxx
         util/Exception.{hxx,cxx}
         util/iShape.{hxx,cxx}
+        util/PriorityQueue.hxx
+        util/PriorityQueue.inl.hxx
         util/Rectangle.{hxx,cxx}
         util/Range.hxx
         util/Color.{hxx,cxx}
         util/Point2D.{hxx,cxx}
         util/BoxSizing.{hxx,cxx}
         util/PixelBuffer.{hxx,cxx}
+        util/TypeList.hxx
+        util/TypeList.inl.hxx
         events/UIEvents.hxx
         events/MouseEvents.hxx
+        events/EventHandler.{hxx,cxx}
         GameService.{hxx,cxx}
         services/Randomizer.{hxx,cxx}
         services/GameClock.{hxx,cxx}
         services/ResourceManager.{hxx,cxx}
+        services/MouseController.{hxx,cxx}
         engine/MessageQueue.hxx
+        engine/MessageQueue.inl.hxx
         engine/basics/Camera.{hxx,cxx}
         engine/basics/isoMath.{hxx,cxx}
         engine/basics/mapEdit.{hxx,cxx}
@@ -62,13 +69,26 @@ set(SOURCE_FILES
         view/iView.{hxx,cxx}
         view/iViewElement.{hxx,cxx}
         view/CursorView.{hxx,cxx}
+        view/ClassicButton.hxx
+        view/ClassicButton.inl.hxx
+        view/TextButton.{hxx,cxx}
+        view/IconButton.{hxx,cxx}
+        view/ImageView.{hxx,cxx}
         view/Window.{hxx,cxx}
         model/iModel.{hxx,cxx}
         model/DataModel.hxx
-        model/ButtonState.{hxx,cxx}
+        model/ButtonModel.{hxx,cxx}
         model/MouseState.{hxx,cxx}
+        model/iLocalization.hxx
+        model/Localization.{hxx,cxx}
+        model/SettingsModel.{hxx,cxx}
         activity/iActivity.{hxx,cxx}
+        activity/MainMenuActivity.{hxx,cxx}
         layout/iLayout.{hxx,cxx}
+        layout/AbsoluteLayout.{hxx,cxx}
+        controller/iController.{hxx,cxx}
+        controller/iMouseHandler.{hxx,cxx}
+        controller/ButtonHandler.{hxx,cxx}
         renderer/iRenderer.{hxx,cxx}
         renderer/SDLRenderer.{hxx,cxx}
         )
@@ -183,6 +203,7 @@ add_custom_target(
         copy_resources
         ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data/resources/ $<TARGET_FILE_DIR:${PROJECT_NAME}>/resources/
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data/languages/ $<TARGET_FILE_DIR:${PROJECT_NAME}>/languages/
         COMMENT "Copy the resources to the compiled directory"
         VERBATIM
 )

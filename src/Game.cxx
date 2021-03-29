@@ -10,15 +10,12 @@
 #include "engine/basics/Settings.hxx"
 #include "engine/basics/GameStates.hxx"
 #include "Filesystem.hxx"
-
+#include "moFileReader.hpp"
 #include <noise.h>
+#include "events/EventHandler.hxx"
 
 #ifdef USE_ANGELSCRIPT
 #include "Scripting/ScriptEngine.hxx"
-#endif
-
-#ifdef USE_MOFILEREADER
-#include "moFileReader.h"
 #endif
 
 #ifdef MICROPROFILE_ENABLED
@@ -26,33 +23,88 @@
 #endif
 
 template void Game::LoopMain<GameLoopMQ, Game::GameVisitor>(Game::GameContext &, Game::GameVisitor);
-template void Game::LoopMain<UILoopMQ, Game::UIVisitor>(Game::GameContext &, Game::UIVisitor);
 
-Game::Game() : 
-      m_GameContext(&m_UILoopMQ, &m_GameLoopMQ,
+template <> void Game::LoopMain<UILoopMQ, Game::UIVisitor>(Game::GameContext &context, Game::UIVisitor visitor)
+{
+  const auto pGameClock = std::get<GameClock *>(context);
+  bool redraw = false;
+
+  while (true)
+  {
+    for (auto &event : std::get<UILoopMQ *>(context)->getEnumerableTimeout(16ms))
+    {
+      if (std::holds_alternative<TerminateEvent>(event))
+      {
+        pGameClock->clear();
+        return;
+      }
+      else
+      {
+        try
+        {
+          std::visit(visitor, std::move(event));
+        }
+        catch (std::exception &ex)
+        {
+          LOG(LOG_ERROR) << ex.what();
+          // @todo: Call shutdown() here in a safe way
+        }
+
+        redraw = true;
+      }
+    }
+
+    if (redraw)
+    {
+      visitor.m_Window.redraw();
+      redraw = false;
+    }
+
+    pGameClock->tick();
+  }
+}
+
+Game::Game()
+    : m_GameContext(&m_UILoopMQ, &m_GameLoopMQ,
 #ifdef USE_AUDIO
                     &m_AudioMixer,
 #endif // USE_AUDIO
-                    &m_Randomizer, &m_GameClock, &m_ResourceManager),
-      m_GameClock{m_GameContext}, m_Randomizer{m_GameContext}, m_ResourceManager{m_GameContext},
+                    &m_Randomizer, &m_GameClock, &m_ResourceManager, &m_MouseController),
+      m_GameClock{m_GameContext}, m_Randomizer{m_GameContext}, m_ResourceManager{m_GameContext}, m_MouseController{m_GameContext},
 #ifdef USE_AUDIO
       m_AudioMixer{m_GameContext},
 #endif
-      m_UILoop(&LoopMain<UILoopMQ, UIVisitor>, std::ref(m_GameContext), UIVisitor{}),
+      m_UILoop(&LoopMain<UILoopMQ, UIVisitor>, std::ref(m_GameContext), UIVisitor{m_Window, m_GameContext}),
       m_EventLoop(&LoopMain<GameLoopMQ, GameVisitor>, std::ref(m_GameContext), GameVisitor{m_GameContext}),
-      m_Window(m_GameContext, VERSION, 
-        Settings::instance().getDefaultWindowWidth(), 
-        Settings::instance().getDefaultWindowHeight(), 
-        Settings::instance().fullScreen, 
-        "resources/images/app_icons/cytopia_icon.png")
+      m_Window(m_GameContext, VERSION, Settings::instance().getDefaultWindowWidth(),
+               Settings::instance().getDefaultWindowHeight(), Settings::instance().fullScreen,
+               "resources/images/app_icons/cytopia_icon.png")
 {
-  LOG(LOG_DEBUG) << "Created Game Object";
+  debug_scope {
+    LOG(LOG_DEBUG) << "Created Game Object";
+  }
   /**
    *  @todo Remove this when new ui is complete
    *  This is just a temporary fix
    */
   WindowManager::instance().setRealWindow(m_Window);
 }
+
+Game::~Game()
+{
+  debug_scope {
+    LOG(LOG_DEBUG) << "Game shutting down";
+  }
+  m_UILoopMQ.push(TerminateEvent{});
+  m_GameLoopMQ.push(TerminateEvent{});
+  m_UILoop.join();
+  m_EventLoop.join();
+
+  // TODO: this will eventually be reworked, but currently there is an issue because new render is created on windows resizing
+  ResourcesManager::instance().flush();
+  UIManager::instance().flush();
+}
+
 
 void Game::quit()
 {
@@ -72,11 +124,8 @@ void Game::quit()
 
 bool Game::initialize()
 {
-
-#ifdef USE_MOFILEREADER
   std::string moFilePath = fs::getBasePath();
   moFilePath = moFilePath + "languages/" + Settings::instance().gameLanguage + "/Cytopia.mo";
-
 
   Layout::instance().setWindow(&m_Window);
   EventManager::instance().setWindow(&m_Window);
@@ -90,10 +139,18 @@ bool Game::initialize()
   {
     LOG(LOG_ERROR) << "Failed to load MO file " << moFilePath;
   }
-#endif
 
-  LOG(LOG_DEBUG) << "Initialized Game Object";
+  debug_scope {
+    LOG(LOG_DEBUG) << "Initialized Game Object";
+  }
   return true;
+}
+
+void Game::newUI()
+{
+  m_UILoopMQ.push(ActivitySwitchEvent{ActivityType::MainMenu});
+  m_GameLoopMQ.push(ActivitySwitchEvent{ActivityType::MainMenu});
+  EventHandler::loop(m_UILoopMQ, m_MouseController);
 }
 
 bool Game::mainMenu()
@@ -267,7 +324,9 @@ void Game::run(bool SkipMenu)
   benchmarkTimer.start();
   Engine &engine = Engine::instance();
 
-  LOG(LOG_DEBUG) << "Map initialized in " << benchmarkTimer.getElapsedTime() << "ms";
+  debug_scope {
+    LOG(LOG_DEBUG) << "Map initialized in " << benchmarkTimer.getElapsedTime() << "ms";
+  }
   Camera::instance().centerScreenOnMapCenter();
 
   SDL_Event event;
@@ -284,13 +343,33 @@ void Game::run(bool SkipMenu)
 #ifdef USE_AUDIO
   if (!Settings::instance().audio3DStatus)
   {
-    m_GameClock.createRepeatedTask(8min, [this]() { m_AudioMixer.play(AudioTrigger::MainTheme); });
-    m_GameClock.createRepeatedTask(3min, [this]() { m_AudioMixer.play(AudioTrigger::NatureSounds); });
+    m_GameClock.addRealTimeClockTask(
+        [this]() {
+          m_AudioMixer.play(AudioTrigger::MainTheme);
+          return false;
+        },
+        0s, 8min);
+    m_GameClock.addRealTimeClockTask(
+        [this]() {
+          m_AudioMixer.play(AudioTrigger::NatureSounds);
+          return false;
+        },
+        0s, 3min);
   }
   else
   {
-    m_GameClock.createRepeatedTask(8min, [this]() { m_AudioMixer.play(AudioTrigger::MainTheme, Coordinate3D{0, 0.5, 0.1}); });
-    m_GameClock.createRepeatedTask(3min, [this]() { m_AudioMixer.play(AudioTrigger::NatureSounds, Coordinate3D{0, 0, -2}); });
+    m_GameClock.addRealTimeClockTask(
+        [this]() {
+          m_AudioMixer.play(AudioTrigger::MainTheme, Coordinate3D{0, 0.5, 0.1});
+          return false;
+        },
+        0s, 8min);
+    m_GameClock.addRealTimeClockTask(
+        [this]() {
+          m_AudioMixer.play(AudioTrigger::NatureSounds, Coordinate3D{0, 0, -2});
+          return false;
+        },
+        0s, 3min);
   }
 #endif // USE_AUDIO
 
@@ -345,40 +424,29 @@ void Game::run(bool SkipMenu)
   }
 }
 
-void Game::shutdown()
-{
-  LOG(LOG_DEBUG) << "In shutdown";
-  m_UILoopMQ.push(TerminateEvent{});
-  m_GameLoopMQ.push(TerminateEvent{});
-  m_UILoop.join();
-  m_EventLoop.join();
-  ResourcesManager::instance().flush();
-  UIManager::instance().flush();
-}
-
 template <typename MQType, typename Visitor> void Game::LoopMain(GameContext &context, Visitor visitor)
 {
-  try
+  while (true)
   {
-    while (true)
+    for (auto &event : std::get<MQType *>(context)->getEnumerable())
     {
-      for (auto event : std::get<MQType *>(context)->getEnumerable())
+      if (std::holds_alternative<TerminateEvent>(event))
       {
-        if (std::holds_alternative<TerminateEvent>(event))
-        {
-          return;
-        }
-        else
+        return;
+      }
+      else
+      {
+        try
         {
           std::visit(visitor, std::move(event));
         }
+        catch (std::exception &ex)
+        {
+          LOG(LOG_ERROR) << ex.what();
+          // @todo: Call shutdown() here in a safe way
+        }
       }
     }
-  }
-  catch (std::exception &ex)
-  {
-    LOG(LOG_ERROR) << ex.what();
-    // @todo: Call shutdown() here in a safe way
   }
 }
 
@@ -388,13 +456,9 @@ void Game::GameVisitor::operator()(TerminateEvent &&)
   throw CytopiaError{TRACE_INFO "Invalid dispatch: TerminateEvent"};
 }
 
-void Game::GameVisitor::operator()(ActivitySwitchEvent && event)
-{
-  /**
-   *  @todo Implement this function
-   */
-  throw UnimplementedError{TRACE_INFO "Not implemented"};
-}
+void Game::GameVisitor::operator()(ActivitySwitchEvent &&event) { GetService<MouseController>().handleEvent(std::move(event)); }
+
+Game::UIVisitor::UIVisitor(Window &window, GameContext &context) : m_Window(window), m_GameContext(context) {}
 
 void Game::UIVisitor::operator()(TerminateEvent &&)
 {
@@ -402,32 +466,13 @@ void Game::UIVisitor::operator()(TerminateEvent &&)
   throw CytopiaError{TRACE_INFO "Invalid dispatch: TerminateEvent"};
 }
 
-void Game::UIVisitor::operator()(UIChangeEvent && event)
+void Game::UIVisitor::operator()(UIChangeEvent &&event) { event.apply(); }
+
+void Game::UIVisitor::operator()(ActivitySwitchEvent &&event)
 {
-  event.apply();
+  m_Window.setActivity(m_Window.fromActivityType(event.activityType, m_GameContext, m_Window));
 }
 
-void Game::UIVisitor::operator()(ActivitySwitchEvent && event)
-{
-  /**
-   *  @todo Implement this function
-   */
-  throw UnimplementedError{TRACE_INFO "Not implemented"};
-}
+void Game::UIVisitor::operator()(WindowResizeEvent &&event) { m_Window.resize(); }
 
-void Game::UIVisitor::operator()(WindowResizeEvent && event)
-{
-  /**
-   *  @todo Implement this function
-   */
-  throw UnimplementedError{TRACE_INFO "Not implemented"};
-}
-
-void Game::UIVisitor::operator()(WindowRedrawEvent && event)
-{
-  /**
-   *  @todo Implement this function
-   */
-  throw UnimplementedError{TRACE_INFO "Not implemented"};
-}
-
+void Game::UIVisitor::operator()(WindowRedrawEvent &&event) { m_Window.redraw(); }

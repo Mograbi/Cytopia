@@ -4,7 +4,7 @@
 #include <string>
 
 #include "betterEnums.hxx"
-#include "util/Meta.hxx"
+#include "util/TypeList.hxx"
 
 using std::string;
 
@@ -20,8 +20,7 @@ using GameEvents = TypeList<
     struct AudioMusicVolumeChangeEvent, struct AudioSoundVolumeChangeEvent, struct AudioSetMutedEvent, struct AudioStopEvent,
     struct AudioPruneEvent,
 #endif // USE_AUDIO
-    struct TerminateEvent,
-    struct ActivitySwitchEvent
+    struct TerminateEvent, struct ActivitySwitchEvent
     /* Add Game Events here */
     >;
 
@@ -36,5 +35,4 @@ using GameEvents = TypeList<
 struct TerminateEvent
 {
 };
-
 #endif

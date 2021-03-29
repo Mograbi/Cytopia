@@ -3,11 +3,7 @@
 #include "Exception.hxx"
 #include "Settings.hxx"
 #include "Filesystem.hxx"
-
-#ifdef USE_MOFILEREADER
-#include "moFileReader.h"
-#endif
-
+#include "moFileReader.hpp"
 #include <SDL_ttf.h>
 
 void Text::draw()
@@ -25,11 +21,7 @@ Text::~Text() {
 
 void Text::setText(const std::string &text)
 {
-#ifdef USE_MOFILEREADER
   elementData.text = moFileLib::moFileReaderSingleton::GetInstance().Lookup(text.c_str());
-#else
-  elementData.text = text;
-#endif
   createTextTexture(elementData.text, SDL_Color{255, 255, 255});
 }
 

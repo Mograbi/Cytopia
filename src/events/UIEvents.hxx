@@ -7,14 +7,14 @@
 /**
  * @brief Events to be handled by the UI Loop
  */
-using UIEvents = TypeList<struct TerminateEvent, struct WindowResizeEvent, struct WindowRedrawEvent,
-                          struct UIChangeEvent, struct ActivitySwitchEvent /* Add UI Events here */>;
+using UIEvents = TypeList<struct TerminateEvent, struct WindowResizeEvent, struct WindowRedrawEvent, struct UIChangeEvent,
+                          struct ActivitySwitchEvent /* Add UI Events here */>;
 /**
  * @brief A transition to another iActivity
  */
 struct ActivitySwitchEvent
 {
- ActivityType activityType;
+  ActivityType activityType;
 };
 
 /**
@@ -37,9 +37,15 @@ struct WindowRedrawEvent
 struct UIChangeEvent
 {
   std::function<void()> apply;
+
   template <typename DataArgs>
-  UIChangeEvent(ObserverSPtr<DataArgs> observer, typename Observer<DataArgs>::Notification &&notification)
-      : apply([observer, notification = std::move(notification)]() { observer->update(std::move(notification)); })
+  UIChangeEvent(ObserverWPtr<DataArgs> observer, typename Observer<DataArgs>::Notification &&notification)
+      : apply([observer, notification = std::move(notification)]() {
+          if (auto lockedObserver = observer.lock())
+          {
+            lockedObserver->update(std::move(notification));
+          }
+        })
   {
   }
 };
