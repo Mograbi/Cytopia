@@ -7,11 +7,10 @@
 #include <memory>
 #include <list>
 
-#include "../events/AudioEvents.hxx"
 #include "audio/Soundtrack.hxx"
 #include "audio/AudioConfig.hxx"
-#include "../GameService.hxx"
 #include "../util/Meta.hxx"
+#include "../util/Singleton.hxx"
 
 #include "AL/al.h"
 #include "AL/alc.h"
@@ -28,149 +27,100 @@ template <typename Type> using Set = std::unordered_set<Type>;
 template <typename Type> using List = std::list<Type>;
 
 /**
+ * @brief a 3-dimensional coordinate
+ * @param x x coordinate, horizontal position
+ * @param y y coordinate, height
+ * @param z z coordinate, vertical position
+ */
+struct Coordinate3D
+{
+  double x, y, z;
+};
+
+/**
  * @class AudioMixer
  */
-class AudioMixer : public GameService
+class AudioMixer : public Singleton<AudioMixer>
 {
 public:
   using DEFAULT_CHANNELS = Constant<4>;
 
   /**
    * @brief sets the music volume
-   * @pre   volume must be within [0, 128]
+   * @param volume
+   * @pre   volume must be a float within [0, 1]
    * @post  Settings::MusicVolume is changed
    */
-  void setMusicVolume(VolumeLevel volume) noexcept;
+  void setMusicVolume(float volume);
 
   /**
    * @brief sets the sound effects volume
-   * @pre   volume must be within [0, 128]
+   * @param volume
+   * @pre   volume must be a float within [0, 1]
    * @post  Settings::SoundEffectsVolume is changed
    */
-  void setSoundEffectVolume(VolumeLevel volume) noexcept;
+  void setSoundEffectVolume(float volume);
 
   /**
-   * @brief Plays a Soundtrack given its ID
-   * @param ID the SoundtrackID
+   * @brief Plays a Soundtrack given its ID and optionally applies an effect
+   * @param id the SoundtrackID
+   * @param effect the effect to apply. Should be in the form of an AL_EFFECT macro such as AL_EFFECT_REVERB or AL_EFFECT_ECHO.
    */
-  void play(SoundtrackID &&ID) noexcept;
+  void play(const SoundtrackID &id, int effect = AL_EFFECT_NULL);
 
   /**
-   * @brief Plays a random Soundtrack from a trigger
+   * @brief Plays a random Soundtrack from a trigger and optionally applies an effect
    * @param trigger the AudioTrigger
+   * @param effect the effect to apply. Should be in the form of an AL_EFFECT macro such as AL_EFFECT_REVERB or AL_EFFECT_ECHO.
    */
-  void play(AudioTrigger &&trigger) noexcept;
+  void play(const AudioTrigger &trigger, int effect = AL_EFFECT_NULL);
 
   /**
-   * @brief Plays a 3D Soundtrack given its ID
-   * @param ID the SoundtrackID
+   * @brief Plays a 3D Soundtrack given its ID and optionally applies an effect
+   * @param id the SoundtrackID
    * @param position the Coordinate3D position of the sound
+   * @param effect the effect to apply. Should be in the form of an AL_EFFECT macro such as AL_EFFECT_REVERB or AL_EFFECT_ECHO.
    */
-
-  void play(SoundtrackID &&ID, Coordinate3D &&position) noexcept;
+  void play(const SoundtrackID &id, const Coordinate3D &position, int effect = AL_EFFECT_NULL);
 
   /**
-   * @brief Plays a Soundtrack given its ID and applies effect to it
-   * @param ID the SoundtrackID
-   * @param position the Coordinate3D position of the sound
-   * @param properties of standard reverb
-   */
-
-  void play(SoundtrackID &&ID, StandardReverbProperties &reverb) noexcept;
-
-  /**
-   * @brief Plays a Soundtrack given its ID and applies effect to it
-   * @param ID the SoundtrackID
-   * @param properties of echo
-   */
-
-  void play(SoundtrackID &&ID, EchoProperties &echo) noexcept;
-
-  /**
-   * @brief Plays a Soundtrack from a trigger and applies effect to it
+   * @brief Plays a 3D Soundtrack from a trigger and optionally applies an effect
    * @param trigger the AudioTrigger
    * @param position the Coordinate3D position of the sound
-   * @param properties of standard reverb
+   * @param effect the effect to apply. Should be in the form of an AL_EFFECT macro such as AL_EFFECT_REVERB or AL_EFFECT_ECHO.
    */
-
-  void play(AudioTrigger &&trigger, StandardReverbProperties &reverb) noexcept;
+  void play(const AudioTrigger &trigger, const Coordinate3D &position, int effect = AL_EFFECT_NULL);
 
   /**
-   * @brief Plays a Soundtrack from a trigger and applies effect to it
-   * @param trigger the AudioTrigger
-   * @param properties of standard reverb
+   * @brief toggles the mute option for sounds
+   * @param isMuted true to mute all sounds, false to unmute
+   * @throws UnimplementedError Currently throws UnimplementedError on function call
    */
-
-  void play(AudioTrigger &&trigger, EchoProperties &echo) noexcept;
-
-  /**
-   * @brief Plays a 3D Soundtrack from a trigger
-   * @param trigger the AudioTrigger
-   * @param position the Coordinate3D position of the sound
-   */
-
-  void play(AudioTrigger &&trigger, Coordinate3D &&position) noexcept;
-
-
-  /**
-   * @brief Plays a 3D Soundtrack given its ID and applies effect to it
-   * @param ID the SoundtrackID
-   * @param position the Coordinate3D position of the sound
-   * @param properties of standard reverb
-   */
-
-  void play(SoundtrackID &&ID, Coordinate3D &&position, StandardReverbProperties &reverb_properties) noexcept;
-
-  /**
-   * @brief Plays a 3D Soundtrack given its ID and applies effect to it
-   * @param ID the SoundtrackID
-   * @param position the Coordinate3D position of the sound
-   * @param properties of echo
-   */
-
-  void play(SoundtrackID &&ID, Coordinate3D &&position, EchoProperties &echo_properties) noexcept;
-
-  /**
-   * @brief Plays a 3D Soundtrack from a trigger and applies effect to it
-   * @param trigger the AudioTrigger
-   * @param position the Coordinate3D position of the sound
-   * @param properties of standard reverb
-   */
-
-  void play(AudioTrigger &&trigger, Coordinate3D &&position, StandardReverbProperties &reverb_properties) noexcept;
-
-  /**
-   * @brief Plays a 3D Soundtrack from a trigger and applies effect to it
-   * @param trigger the AudioTrigger
-   * @param position the Coordinate3D position of the sound
-   * @param properties of echo
-   */
-
-  void play(AudioTrigger &&trigger, Coordinate3D &&position, EchoProperties &echo_properties) noexcept;
-
-  /**
-   * @brief stops all sounds
-   * @param isMuted is muted
-   */
-  void setMuted(bool isMuted) noexcept;
+  void setMuted(bool isMuted);
 
   /**
    * @brief Stops all soundtracks
    */
-  void stopAll() noexcept;
+  void stopAll();
 
   /**
    * @brief Updates soundtracks that are no longer playing
    */
-  void prune() noexcept;
+  void prune();
 
   /**
    * @pre GameClock must be initialized
+   * @throws ConfigurationError if there is a problem opening the audio config file
+   * @throws AudioError if OpenAL context cannot be initialized or an OpenAL error occurs
    */
-  AudioMixer(GameService::ServiceTuple &);
+  AudioMixer();
   ~AudioMixer();
+  AudioMixer(const AudioMixer &) = delete;
+  AudioMixer(AudioMixer &&) = delete;
+  AudioMixer &operator=(const AudioMixer &) = delete;
+  AudioMixer &operator=(AudioMixer &&) = delete;
 
-  //for orientation of listener
+  /// orientation of listener
   enum class ORIENTATION_INDEX : int
   {
     FORWARD_X = 0,
@@ -181,7 +131,7 @@ public:
     UP_Z = 5
   };
 
-  //for position of listener
+  /// position of listener
   enum class POSITION_INDEX : int
   {
     X = 0,
@@ -210,58 +160,28 @@ private:
    */
   List<SoundtrackUPtr *> m_Playing;
 
-  /* Event handlers */
-  void handleEvent(const AudioTriggerEvent &&event);
-  void handleEvent(const AudioTrigger3DEvent &&event);
-
-  void handleEvent(const AudioPlayEvent &&event);
-  void handleEvent(const AudioPlay3DEvent &&event);
-
-  void handleEvent(const AudioPlayReverbEvent &&event);
-  void handleEvent(const AudioPlayEchoEvent &&event);
-
-  void handleEvent(const AudioTriggerReverbEvent &&event);
-  void handleEvent(const AudioTriggerEchoEvent &&event);
-
-  void handleEvent(const AudioPlayReverb3DEvent &&event);
-  void handleEvent(const AudioPlayEcho3DEvent &&event);
-
-  void handleEvent(const AudioTriggerReverb3DEvent &&event);
-  void handleEvent(const AudioTriggerEcho3DEvent &&event);
-
-  void handleEvent(const AudioSoundVolumeChangeEvent &&event);
-  void handleEvent(const AudioMusicVolumeChangeEvent &&event);
-  void handleEvent(const AudioSetMutedEvent &&event);
-  void handleEvent(const AudioStopEvent &&event);
-  void handleEvent(const AudioPruneEvent &&event);
-  
   /* Helpers */
-  
+
   /**
    * @brief Get a descriptive error message from an error code
    */
-  const char * get_al_error_msg(ALenum error);
+  const char *get_al_error_msg(ALenum error);
 
   /**
    * @brief Plays the Soundtrack
    * @param soundtrack the Soundtrack
+   * @throws AudioError if track is invalid or its source is uninitialized
    */
   void playSoundtrack(SoundtrackUPtr &soundtrack);
 
   /**
-   * @brief Plays the Soundtrack with reverb
+   * @brief Plays the Soundtrack with a certain effect applied.
+   * @details Given the soundtrack, this function will apply the given AL effect to the audio with the default settings.
    * @param soundtrack the Soundtrack
-   * @param properties of reverb effect
+   * @param ALEffect the effect to apply. Should be in the form of an AL_EFFECT macro such as AL_EFFECT_REVERB or AL_EFFECT_ECHO.
+   * @throws AudioError if track is invalid, its source is uninitialized, or reverb effect could not be applied
    */
-  void playSoundtrackWithReverb(SoundtrackUPtr &soundtrack, const StandardReverbProperties &reverb_properties);
-
-  /**
-   * @brief Plays the Soundtrack with echo
-   * @param soundtrack the Soundtrack
-   * @param properties of echo effect
-   */
-  void playSoundtrackWithEcho(SoundtrackUPtr &soundtrack, const EchoProperties &echo_properties);
-
+  void playSoundtrackWithEffect(SoundtrackUPtr &soundtrack, int ALEffect);
   /**
    * @brief Called whenever a Channel has finished playing
    * @param channelID the channel that has finished playing
@@ -279,6 +199,9 @@ private:
    *          involves creating the onTrackFinishedFunc global function object which captures the AudioMixer object
    */
   static void onTrackFinishedFuncPtr(int channelID) { onTrackFinishedFunc(channelID); }
+
+  SoundtrackUPtr &getTrack(const AudioTrigger &trigger);
+  SoundtrackUPtr &getTrack(const SoundtrackID &id);
 
   friend class Game;
 

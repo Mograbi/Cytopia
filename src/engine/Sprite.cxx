@@ -8,17 +8,16 @@
 #include "common/enums.hxx"
 #include "LOG.hxx"
 #include "Exception.hxx"
-#include "Settings.hxx"
 #include "GameStates.hxx"
 
 #ifdef MICROPROFILE_ENABLED
-#include "microprofile.h"
+#include "microprofile/microprofile.h"
 #endif
 
-Sprite::Sprite(Point _isoCoordinates) : isoCoordinates(_isoCoordinates)
+Sprite::Sprite(Point _isoCoordinates)
+    : isoCoordinates(_isoCoordinates), m_SpriteData(LAYERS_COUNT), m_renderLayer(LAYERS_COUNT, true)
 {
   m_screenCoordinates = convertIsoToScreenCoordinates(_isoCoordinates);
-  m_SpriteData.resize(LAYERS_COUNT); // resize the spritedata vector to the amount of layers we have.
 }
 
 void Sprite::render() const
@@ -28,14 +27,20 @@ void Sprite::render() const
 #endif
   for (auto currentLayer : allLayersOrdered)
   {
-    if (MapLayers::isLayerActive(currentLayer) && m_SpriteData[currentLayer].texture)
+    if (MapLayers::isLayerActive(currentLayer) && m_SpriteData[currentLayer].texture && m_renderLayer[currentLayer])
     {
+      // Don't draw zones when there is a building on this sprite
+      if (currentLayer == Layer::ZONE && m_SpriteData[Layer::BUILDINGS].texture)
+      {
+        continue;
+      }
       if (highlightSprite)
       {
         SDL_SetTextureColorMod(m_SpriteData[currentLayer].texture, highlightColor.r, highlightColor.g, highlightColor.b);
       }
 
-      if (GameStates::instance().layerEditMode == LayerEditMode::BLUEPRINT && currentLayer != Layer::BLUEPRINT && currentLayer != Layer::UNDERGROUND)
+      if (GameStates::instance().layerEditMode == LayerEditMode::BLUEPRINT && currentLayer != Layer::BLUEPRINT &&
+          currentLayer != Layer::UNDERGROUND)
       {
         SDL_SetTextureAlphaMod(m_SpriteData[currentLayer].texture, 80);
       }

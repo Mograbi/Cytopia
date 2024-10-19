@@ -10,7 +10,7 @@
 
 #include "../Sprite.hxx"
 #include "../common/enums.hxx"
-#include "../basics/point.hxx"
+#include "../basics/Point.hxx"
 
 #include "../TileManager.hxx"
 
@@ -20,12 +20,11 @@ struct MapNodeData
   TileData *tileData = nullptr;
   int32_t tileIndex = 0;
   Point origCornerPoint = Point::INVALID();
-  bool shouldRender = true;
-  TileMap tileMap = TileMap::DEFAULT; // store information wheter we use normal, slope or shore tiles
+  TileMap tileMap = TileMap::DEFAULT; // store information whether we use normal, slope or shore tiles
 };
 
 /** @brief Class that holds map nodes
- * Each tile is represented by the map nodes class.
+ * @details Each tile is represented by the map nodes class.
  */
 
 class MapNode
@@ -48,27 +47,25 @@ public:
   ~MapNode() = default;
 
   /** @brief get Sprite
-    * get the Sprite* object for this nodes
+    * @details get the Sprite* object for this nodes
     * @returns the Sprite of this node.
     * @see Sprite
     */
   Sprite *getSprite() const { return m_sprite.get(); };
 
   /** @brief get iso coordinates of this node
-    * gets the iso coordinates of this node
     * @returns a pointer to the node's iso coordinates
     */
   const Point &getCoordinates() const { return m_isoCoordinates; };
 
   /** @brief sets the iso coordinates of this node
-    * sets the iso coordinates of this node
     * @param newIsoCoordinates the new iso coordinates for the node
     */
   void setCoordinates(const Point &newIsoCoordinates);
 
   /** @brief Change Height
-    * Increases or decrease the height of the node and its sprite
-    * This function should not be called directly, but only from where the neighboring nodes slopes are determined
+    * @details Increases or decrease the height of the node and its sprite.
+    * This function should not be called directly, but only from where the neighboring nodes slopes are determined.
     *
     * @param higher pass true in case that height should be increased or false in case that height should be decreased.
     * @return true in case that height is changed, otherwise false.
@@ -76,7 +73,7 @@ public:
   bool changeHeight(const bool higher);
 
   /** @brief Render MapNode
-  * Renders the sprite object(s) of the node
+  * @details Renders the sprite object(s) of the node
   */
   void render() const;
 
@@ -87,24 +84,22 @@ public:
   const TileData *getTileData(Layer layer) const { return m_mapNodeData[layer].tileData; };
 
   /** @brief get TileID of specific layer inside NodeData.
-    * @param layer - what layer should be checked on.
+    * @param layer what layer should be checked on.
     */
   const std::string &getTileID(Layer layer) const { return m_mapNodeData[layer].tileID; };
 
   bool isPlacementAllowed(const std::string &newTileID) const;
 
   /// Overwrite m_mapData with the one loaded from a savegame. This function to be used only by loadGame
-  void setMapNodeData(std::vector<MapNodeData> &&mapNodeData, const Point &isoCoordinates);
+  void setMapNodeData(std::vector<MapNodeData> &&mapNodeData);
 
   const std::vector<MapNodeData> &getMapNodeData() const { return m_mapNodeData; };
   const MapNodeData &getMapNodeDataForLayer(Layer layer) const { return m_mapNodeData[layer]; };
 
   const MapNodeData &getActiveMapNodeData() const;
 
-  /** @brief tileID placeable on slope tile.
-    * check if tileID is placeable on slope.
-    * @param tileID - the tileID which need to be checked whether allowing placement on slope or not.
-    * @param layer - what layer should be checked on, in case this is not BUILDING layer the placement is OK.
+  /** @brief check if tileID placeable on slope tile.
+    * @param tileID the tileID which need to be checked whether allowing placement on slope or not.
     */
   bool isPlacableOnSlope(const std::string &tileID) const;
 
@@ -112,68 +107,82 @@ public:
     */
   bool isSlopeNode(void) const;
 
+  /** @brief check the conductivity of the node
+    * @returns true if the node conducts electricity/power, false if not
+    */
+  const bool isConductive() const;
+
   /**
  * @brief Demolish a node
- * Removes all tiles on a node. This effects all layers where something to demolish is placed. (BUILDINGS, GROUND_DECORATION, UNDERGROUND) per default, but can be restricted to a single Layer.
- * @param isoCoordinates all coordinates that should be demolished
- * @param updateNeighboringTiles wether the adjecent tiles should be updated. (only relevant for autotiling)
+ * @details Removes all tiles on a node. This effects all layers where something to demolish is placed (BUILDINGS, GROUND_DECORATION, UNDERGROUND) per default, but can be restricted to a single Layer.
  * @param layer restrict demolish to a single layer
  * @see MapNode#demolishNode
  */
   void demolishNode(const Layer &layer = Layer::NONE);
 
   /** @brief demolish specific layer of a Node.
-    * @param layer - what layer should be demolished.
+    * @param layer what layer should be demolished.
     */
   void demolishLayer(const Layer &layer);
 
   void setTileID(const std::string &tileType, const Point &origPoint);
 
+  /**
+   * @brief Get the Origin Corner Point of a multitile building
+   * 
+   * @param layer the layer that should be checked
+   * @return const Point& 
+   */
   const Point &getOrigCornerPoint(Layer layer) const { return getMapNodeDataForLayer(layer).origCornerPoint; }
 
+  /**
+   * @brief If this is the origin node of a multitile building. 
+   * 
+   * @param layer the layer that should be checked, defaults to the BUILDINGS layer
+   * @return wheter or not this is the origin node of a multitile building
+   */
+  bool isOriginNode(Layer layer = Layer::BUILDINGS) const
+  {
+    return (m_isoCoordinates == getMapNodeDataForLayer(layer).origCornerPoint);
+  }
+
   /** @brief return topmost active layer.
-    * check layers in order of significance for the topmost active layer that has an active tile on that layer
+    * @details check layers in order of significance for the topmost active layer that has an active tile on that layer
     * @return Layer enum of the topmost active layer
     */
   Layer getTopMostActiveLayer() const;
 
-  /** @brief check if specific layer can be autotiled.
-    * @return bool indicating whether layer item can be autotiled.
-    */
-  bool isLayerAutoTile(const Layer &layer) const;
-
-  /** @brief check if specific Tile Data is autotile category.
-    * @return bool indicating whether Tile Data item can be autotiled.
-    */
-  static bool isDataAutoTile(const TileData *tileData);
-
   bool isLayerOccupied(const Layer &layer) const { return m_mapNodeData[layer].tileData != nullptr; }
 
-  void setRenderFlag(Layer layer, bool shouldRender) { m_mapNodeData[layer].shouldRender = shouldRender; }
-
   /** @brief Set elevation bit mask.
+  * @param bitMask
     */
   inline void setElevationBitMask(const unsigned char bitMask) { m_elevationBitmask = bitMask; }
 
   /** @brief Set autotile bit mask.
+  * @param bitMask
     */
   inline void setAutotileBitMask(std::vector<unsigned char> &&bitMask) { m_autotileBitmask = std::move(bitMask); }
 
   /** @brief Update texture.
+  * @param layer
     */
   void updateTexture(const Layer &layer = Layer::NONE);
 
   /**
    * @brief Sets a node to be Transparent
-   * This sets a node to be Transparent.
-   * @parameter transparencyFactor (0-1.0) - The percentage of node transparency. 1 -> invisible, 0 -> opaque.
-   * @parameter layer - what layer in Sprite should it's transperancy altered.
+   * @param transparencyFactor (0-1.0) - The percentage of node transparency. 1 -> invisible, 0 -> opaque.
+   * @param layer what layer in Sprite should it's transparency altered.
    */
   void setNodeTransparency(const float transparencyFactor, const Layer &layer) const;
 
   /**
-   * @brief Maximum height of the node.
-   */
+  * @brief Update the Z-Index of this mapNode
+  * @param the new Z-Index
+  */
+  void setZIndex(int zIndex) { m_isoCoordinates.z = zIndex; };
+
+  /// Maximum height of the node.
   static const int maxHeight = 32;
 
 private:

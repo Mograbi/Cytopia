@@ -4,55 +4,62 @@
 #include <ciso646>
 #include <string>
 #include <vector>
-#include "../util/PixelBuffer.hxx"
 
 namespace fs
 {
 
-/**
- * @brief   Read contents from a file as string.
- * @param   fileName Name of the file to read
- * @param   binaryMode (optional) open the file in binary mode. (default: false)
- * @returns the content of the file as string
- */
+/** @brief Read contents from a file as string.
+   * @param fileName Name of the file to read
+   * @param binaryMode (optional) open the file in binary mode. (default: false)
+   * @returns the content of the file as string
+   */
 std::string readFileAsString(const std::string &fileName, bool binaryMode = false);
 
-/**
- * @brief   Read contents from a PNG file
- * @param   fileName Name of the PNG file to read
- * @returns A PixelBuffer centered at (0, 0) with pixel data
- */
-PixelBuffer readPNGFile(const std::string & fileName);
+/** @brief Read contents from a file as string.
+   * @param fileName Name of the file to read
+   * @param binaryMode (optional) open the file in binary mode. (default: false)
+   * @returns the content of the file as string
+   */
+std::string readCompressedFileAsString(const std::string &fileName);
 
-/** Write a string to a file.
+/** @brief Write a string to a file.
    * @param fileName Name of the file to write
+   * @param stringToWrite string to be written
    * @param binaryMode (optional) open the file in binary mode. (default: false)
    */
 void writeStringToFile(const std::string &fileName, const std::string &stringToWrite, bool binaryMode = false);
 
-/** Get a directory listing of a given directory.
+/** @brief Write a string to a file and compress it.
+   * @param fileName Name of the file to write
+   * @param stringToWrite string to be written
+   */
+void writeStringToFileCompressed(const std::string &fileName, const std::string &stringToWrite);
+
+/** @brief Get a directory listing of a given directory.
    * @param directory Name of the folder to retrieve the directory listing from
    * @returns a directory::iterator containing the folder content
    */
 std::vector<std::string> getDirectoryListing(const std::string &directory);
 
-/** Get all savegames in the savegame directory
+/** @brief Get all savegames in the savegame directory
    * @returns a std::vector containing paths with all savegames
    */
 std::vector<std::string> getSaveGamePaths();
 
-/** Check if a file (or folder) exists
+/** @brief Check if a file (or folder) exists
  * @param filePath Path to file or folder to check
- * @returns a true if the path exists
+ * @returns true if the path exists
  */
 
 bool fileExists(const std::string &filePath);
 
-/** Get Base Path (where cytopia is being run)
- * A wrapper for SDL_GetBasePath, which is not run on Android because it hard-crashes the app. Memory is freed after the call.
+/** @brief Get base path (where Cytopia is being run)
+ * @details A wrapper for SDL_GetBasePath, which is not run on Android because it hard-crashes the app. Memory is freed after the call.
  * @returns the Base path
  */
 std::string getBasePath();
+
+void createDirectory(const std::string &dir);
 
 } // namespace fs
 #endif

@@ -4,31 +4,6 @@
 #include <string>
 #include "Exception.hxx"
 
-#define STRINGIFY(x) #x
-#define STRINGIFY2(x) STRINGIFY(x)
-#define __line__ STRINGIFY2(__LINE__)
-#define TRACE_INFO "Exception thrown from " + string(__PRETTY_FUNCTION__) + " at " __FILE__ ":" __line__ " - "
-
-// Required to use std::getenv without warning on MSVC
-#define _CRT_SECURE_NO_WARNINGS
-
-#if _MSC_VER && !__INTEL_COMPILER
-#define __PRETTY_FUNCTION__ __FUNCSIG__
-#elif __INTEL_COMPILER
-#define __PRETTY_FUNCTION__ "Unknown_Method"
-#endif
-
-/**
- * @def debug_scope
- * Creates a scope which only gets
- * executed for debug builds
- */
-#ifdef DEBUG
-#define debug_scope
-#else
-#define debug_scope if constexpr(false)
-#endif
-
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -86,7 +61,7 @@ public:
 
   /**
    * @brief Log a message
-   * @tparam Object the streamable message type
+   * @tparam msg the streamable message type
    */
   template <class Object> LOG &operator<<(const Object &msg);
 
@@ -95,16 +70,15 @@ private:
   std::ostringstream m_Logger;
 
   /** @brief Gets formatted TimeStamp
-   *  Gets formatted TimeStamp
    *  @return std::string containing current TimeStamp
    */
-  std::string getTimeStamp();
+  const std::string getTimeStamp();
 
   /** @brief Write log message to error.log file
    *  @details If the log file exceeds MAX_LOG_SIZE_BYTES, logs will be cut in half
-   *  @param message to write to error logfile
+   *  @param errorMessage to write to error logfile
    */
-  void writeErrorLog(const std::string &errorMessage);
+  void writeErrorLog(const std::string &errorMessage) const;
 };
 
 #include "LOG.inl.hxx"

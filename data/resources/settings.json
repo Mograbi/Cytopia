@@ -1,11 +1,12 @@
 {
+  "SettingsVersion": 1,
   "Audio": {
     "Audio3DStatus": false,
     "AudioChannels": 2,
-    "MusicVolume": 50,
+    "MusicVolume": 0.5,
     "PlayMusic": true,
     "PlaySoundEffects": true,
-    "SoundEffectsVolume": 100
+    "SoundEffectsVolume": 1
   },
   "ConfigFiles": {
     "AudioConfigJSONFile": "resources/data/AudioConfig.json",
@@ -18,34 +19,27 @@
     "Language": "en",
     "MapSize": 128,
     "MaxElevationHeight": 32,
-    "ShowBuildingsInBluePrint": false,
-    "ZoneLayerTransperancy": 0.6000000238418579
+    "ShowBuildingsInBlueprint": false,
+    "ZoneLayerTransparency": 0.6
   },
   "Graphics": {
-    "DefaultDisplayMode": "480p",
-    "DisplayModes": {
-      "1080p": [
-        1920,
-        1080
-      ],
-      "480p": [
-        640,
-        480
-      ],
-      "720p": [
-        960,
-        720
-      ]
-    },
     "FullScreen": false,
-    "VSYNC": false
+    "FullScreenMode": 0,
+    "Resolution": {
+      "Screen_Height": 600,
+      "Screen_Width": 800
+    },
+    "VSYNC": true
   },
-  "UI": {
+  "User Interface": {
     "BuildMenuPosition": "BOTTOM",
     "FontFilename": "resources/fonts/pixellocale-v-1-4.ttf",
-    "NewUI": false,
-    "SkipMenu": false,
+    "Language": "en",
     "SubMenuButtonHeight": 32,
-    "SubMenuButtonWidth": 32
+    "SubMenuButtonWidth": 32,
+    "DefaultFontSize": 20
+  },
+  "Debug": {
+    "WriteErrorLogToFile": false
   }
 }

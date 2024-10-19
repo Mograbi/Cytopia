@@ -1,33 +1,52 @@
 #include "Settings.hxx"
 
-#include "LOG.hxx"
+// #include "LOG.hxx"
 #include "Exception.hxx"
 #include "Constants.hxx"
-#include "JsonSerialization.hxx"
 #include "Filesystem.hxx"
+#include "LOG.hxx"
+#include <JsonSerialization.hxx>
 
 #include <iomanip>
 
 Settings::Settings() { readFile(); }
 
-Settings::~Settings()
-{
-  debug_scope {
-    LOG(LOG_DEBUG) << "Destroying Setttings";
-  }
-}
-
 void Settings::readFile()
 {
-  std::string jsonFile = fs::readFileAsString(SETTINGS_FILE_NAME);
-  const json _settingsJSONObject = json::parse(jsonFile, nullptr, false);
+  const std::string pathToCachedSettingsFile = CYTOPIA_DATA_DIR + SETTINGS_FILENAME;
+  const std::string pathToLocalSettingsFile = fs::getBasePath() + CYTOPIA_RESOURCES_DIR + SETTINGS_FILENAME;
 
-  // check if json file can be parsed
-  if (_settingsJSONObject.is_discarded())
-    throw ConfigurationError(TRACE_INFO "Error parsing JSON File " + string{SETTINGS_FILE_NAME});
+  const json localJsonObject = parseSettingsFile(pathToLocalSettingsFile);
+  const json cachedJsonObject = parseSettingsFile(pathToCachedSettingsFile);
 
-  SettingsData data = _settingsJSONObject;
-  *this = data;
+  if (localJsonObject.empty() || localJsonObject.is_discarded())
+    throw ConfigurationError(TRACE_INFO "Error parsing local JSON File " + string{pathToLocalSettingsFile});
+
+  SettingsData settingsData;
+
+  if (cachedJsonObject.empty() || cachedJsonObject.is_discarded())
+  {
+    settingsData = localJsonObject;
+  }
+  else
+  {
+    int cacheVersion = cachedJsonObject.value("SettingsVersion", -1);
+    int localVersion = localJsonObject.value("SettingsVersion", -1);
+    if (localVersion <= cacheVersion)
+    {
+      settingsData = cachedJsonObject;
+    }
+    else
+    {
+      LOG(LOG_INFO) << "The settings file version has changed. Overwriting local cached settings file with default settings.";
+    }
+  }
+
+  *this = settingsData;
+
+  // init the actual resolution with the desired resolution
+  currentScreenWidth = screenWidth;
+  currentScreenHeight = screenHeight;
 
 #ifdef __ANDROID__
   subMenuButtonHeight *= 2;
@@ -38,53 +57,43 @@ void Settings::readFile()
 void Settings::writeFile()
 {
   const json settingsJsonObject = *this;
-  fs::writeStringToFile(SETTINGS_FILE_NAME, settingsJsonObject.dump(2));
-}
-
-void Settings::parse_args(int argc, char** argv) {
-  if(argc == 1) {
-    return;
+  std::string pathToDataDir;
+  if (CYTOPIA_DATA_DIR_BASE.empty())
+  {
+    LOG(LOG_ERROR) << "CYTOPIA_DATA_DIR_BASE is not set! Please report this issue on github. Falling back to cytopia base dir.";
+    pathToDataDir = fs::getBasePath() + CYTOPIA_RESOURCES_DIR;
   }
-  json patch;
-  ++argv;
-  while(argc --> 1) {
-    if(argv[0][0] != '-' || argv[0][1] != '-') {
-      throw ConfigurationError{TRACE_INFO "Invalid argument: " + std::string(argv[0]) };
-    }
-    std::string key_str(argv[0] + 2);
-    std::replace(key_str.begin(), key_str.end(), '.', '/');
-    key_str = "/" + key_str;
-    json::json_pointer key(key_str);
-    --argc;
-    ++argv;
-    if(argc == 0) {
-      throw ConfigurationError{TRACE_INFO "Missing parameter value for: " + key_str };
-    }
-    std::string value(argv[0]);
-    patch[key] = json::parse(value, nullptr, false);
-    // Allow strings
-    if(patch[key].is_discarded()) {
-      patch[key] = value;
-    }
-
-    ++argv;
+  else
+  {
+    pathToDataDir = CYTOPIA_DATA_DIR;
   }
-  /**
-   *  @todo This is a lazy implementation... We probably should get rid of singleton 
-   *        and parse arguments in the constructor instead
-   */
-  json js = *this;
-  js.merge_patch(patch);
-  SettingsData data = js;
-  *this = data;
+  std::string pathToSettingsFile = pathToDataDir + SETTINGS_FILENAME;
+  fs::createDirectory(pathToDataDir);
+  fs::writeStringToFile(pathToSettingsFile, settingsJsonObject.dump());
 }
 
-int Settings::getDefaultWindowWidth() const noexcept
+json Settings::parseSettingsFile(const std::string &fileName) const
 {
-  return displayModes.at(defaultDisplayMode)[0];
+  json settingsJSONObject;
+
+  if (fs::fileExists(fileName))
+  {
+    std::string jsonFile = fs::readFileAsString(fileName);
+    settingsJSONObject = json::parse(jsonFile, nullptr, false);
+  }
+
+  return settingsJSONObject;
 }
-  
-int Settings::getDefaultWindowHeight() const noexcept
+
+void Settings::resetSettingsToDefaults()
 {
-  return displayModes.at(defaultDisplayMode)[1];
+  const std::string pathToLocalSettingsFile = fs::getBasePath() + CYTOPIA_RESOURCES_DIR + SETTINGS_FILENAME;
+  const json localJsonObject = parseSettingsFile(pathToLocalSettingsFile);
+
+  if (localJsonObject.empty() || localJsonObject.is_discarded())
+    throw ConfigurationError(TRACE_INFO "Error parsing local JSON File " + string{pathToLocalSettingsFile});
+
+  SettingsData settingsData;
+  settingsData = localJsonObject;
+  *this = settingsData;
 }

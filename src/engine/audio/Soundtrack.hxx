@@ -19,13 +19,13 @@ using RepeatCount = StrongType<uint8_t, struct RepeatCountTag>;
 /**
    * @brief Container for raw pcm data that read from .ogg sound file
    * @details raw pcm data is held in a vector of type char.
-   * @param nBytes is the length of sample in bytes
-   * @param data_sample_rate is the  sample rate of audio sample assuming it is just 1 sample rate
+   * @param nBytes length of sample in bytes
+   * @param data_sample_rate sample rate of audio sample assuming it is just 1 sample rate
    */
 struct DecodedAudioData
 {
-  std::vector<char> char_data_vec; //pcm audio data
-  long nBytes;                     //number of bytes in decoded audio data
+  std::vector<char> char_data_vec; ///< pcm audio data
+  long nBytes;                     ///< number of bytes in decoded audio data
   int data_sample_rate;
 };
 
@@ -66,11 +66,11 @@ struct Soundtrack
   bool isPlayable : 1;
 
   /**
-   * @brief The OpenAL source of the sound track
-   * @details An object that tells the OpenAL system where the sound making object is located in 3d space
-   * and what buffer(sound) it makes.
+   * @brief The OpenAL sources of the sound track
+   * @details An object that tells the OpenAL system where the sound making object is located in 3D space
+   * and what buffer(sound) it makes. source[0] is for sound effects and source[1] is for music.
    */
-  ALuint source;
+  ALuint source[2];
 
   /**
    * @brief The OpenAL buffer of the sound track
@@ -85,10 +85,6 @@ struct Soundtrack
    * to tell the system where the sound is made.
    */
   ALuint effect_slot;
-
-  /**
-   * @brief The WAVE data of the Soundtrack
-   */
 
   /**
    * @brief The audio data of the Soundtrack

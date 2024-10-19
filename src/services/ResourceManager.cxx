@@ -33,7 +33,7 @@
 using ifstream = std::ifstream;
 using nlohmann::json;
 
-ResourceManager::ResourceManager(GameService::ServiceTuple &services) : GameService(services), m_Age(0), m_CacheSize(0)
+ResourceManager::ResourceManager() : m_Age(0), m_CacheSize(0)
 {
 #ifdef USE_AUDIO
   std::string jsonFileContent = fs::readFileAsString(Settings::instance().audioConfigJSONFile.get());
@@ -64,8 +64,7 @@ int ResourceManager::LoadAudioWithOggVorbis(std::string path, DecodedAudioData &
 #endif
 
   //open file
-  //read file in binary mode
-  SDL_RWops *file = SDL_RWFromFile(path.c_str(), "rb");
+  ifstream file(path, std::ifstream::in | std::ifstream::binary);
 
   //check if file is an vorbis ogg file
   if (ov_fopen(path.c_str(), &vf) < 0)
@@ -123,9 +122,7 @@ int ResourceManager::LoadAudioWithOggVorbis(std::string path, DecodedAudioData &
   //clear data
   ov_clear(&vf);
 
-  debug_scope {
-    LOG(LOG_DEBUG) << "Audio data read successful! Loaded into decoded audio buffer.\n";
-  }
+  LOG(LOG_DEBUG) << "Audio data read successful! Loaded into decoded audio buffer.\n";
   return 0;
 }
 
@@ -158,7 +155,7 @@ void ResourceManager::fetch(SoundtrackID id)
     throw AudioError(TRACE_INFO "Failed to read sound file with libvorbis.\n ");
   }
 
-  if (dataBuffer.char_data_vec.size() == 0)
+  if (dataBuffer.char_data_vec.empty())
     throw AudioError(TRACE_INFO "Could not read sound file: It is empty");
 
   m_CacheSize += sizeof(dataBuffer) + sizeof(Soundtrack) + sizeof(SoundtrackResource) + dataBuffer.nBytes;

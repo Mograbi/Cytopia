@@ -1,3 +1,4 @@
+#include <cassert>
 #include "LOG.hxx"
 
 template <typename DelayType, typename PeriodType>
@@ -22,6 +23,6 @@ inline GameClock::ClockTaskHndl GameClock::addRealTimeClockTask(ClockCbk cbk, De
   }
 
   m_realTimeTasks.push(RealTimeClockTask(cbk, Clock::now() + (delayConverted - TimePointZero), (TimePoint)period - TimePointZero,
-                                        ++m_unique_handle));
+                                         ++m_unique_handle));
   return m_unique_handle;
 }

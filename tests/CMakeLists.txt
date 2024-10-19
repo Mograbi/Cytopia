@@ -1,31 +1,8 @@
+include(codecov)
+
 set(TESTS_PROJECT_NAME Cytopia_Tests)
 
-find_package(Catch2 REQUIRED)
-
-include(Catch)
-
-list(APPEND _include_directories
-        ${CMAKE_SOURCE_DIR}/src/engine
-        ${CMAKE_SOURCE_DIR}/src/engine/basics
-        ${CMAKE_SOURCE_DIR}/src/engine/common
-        ${CMAKE_SOURCE_DIR}/src/engine/GameObjects
-        ${CMAKE_SOURCE_DIR}/src/engine/map
-        ${CMAKE_SOURCE_DIR}/src/engine/ui/basics/
-        ${CMAKE_SOURCE_DIR}/src/engine/ui/widgets
-        ${CMAKE_SOURCE_DIR}/src/engine/ui/menuGroups
-        ${CMAKE_SOURCE_DIR}/src/util
-        ${CMAKE_SOURCE_DIR}/src/events
-        ${CMAKE_SOURCE_DIR}/src/layout
-        ${CMAKE_SOURCE_DIR}/src/model
-        ${CMAKE_SOURCE_DIR}/src/services
-        )
-
-if (NOT PACKAGE_MANAGER STREQUAL "conan")
-    include(pmm)
-    pmm(CMakeCM ROLLING)
-endif()
-
-include(codecov)
+include(${CMAKE_SOURCE_DIR}/external/catch2/Catch.cmake)
 
 # We need to test our sources
 SET(_TMP_SRC ${MAIN_EXE_SOURCE_FILES})
@@ -44,25 +21,26 @@ endforeach ()
 LIST(APPEND TEST_SOURCES
         main.cxx
         Example.cxx
-        GameFixture.cxx
+        engine/basics/Point.cxx
+        engine/basics/Settings.cxx
         engine/ResourcesManager.cxx
-        engine/Engine.cxx
+        engine/EventManager.cxx
+        engine/MapFunctions.cxx
+        engine/UIManager.cxx
         engine/WindowManager.cxx
+        game/PowerManager.cxx
         services/GameClock.cxx
-        ui/widgets/Text.cxx
-        util/TypeList.cxx
-        util/Observer.cxx
-        util/TransitiveModel.cxx
+        util/Meta.cxx
         util/MessageQueue.cxx
         util/LOG.cxx
-        util/Rectangle.cxx
-        util/Point2D.cxx
-        util/Range.cxx
-        util/ZipRange.cxx
-        util/Color.cxx
-        util/BoxSizing.cxx
-        util/PixelBuffer.cxx
         )
+
+if (USE_ANGELSCRIPT)
+    list(APPEND TEST_SOURCES
+            scripting/ScriptEngine.cxx
+            )
+endif ()
+
 
 # Generate source groups for use in IDEs
 generate_source_groups(${TEST_SOURCES})
@@ -76,25 +54,65 @@ generate_source_groups(${TEST_SOURCES})
 
 add_executable(${TESTS_PROJECT_NAME} ${TEST_SOURCES})
 
-target_include_directories(${TESTS_PROJECT_NAME} PRIVATE ${_include_directories} src)
-target_compile_definitions(${TESTS_PROJECT_NAME} PRIVATE ${_compile_definitions})
-target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE ${_link_libraries} Catch2::Catch2)
+if (ENABLE_PHC)
+    target_precompile_headers(${TESTS_PROJECT_NAME} PRIVATE phc.hxx)
+endif ()
+
+target_include_directories(
+        ${TESTS_PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/external/header_only
+        src
+        ${CMAKE_SOURCE_DIR}/external/catch2
+        ${CMAKE_SOURCE_DIR}/src/engine
+        ${CMAKE_SOURCE_DIR}/src/engine/GameObjects
+        ${CMAKE_SOURCE_DIR}/src/engine/basics
+        ${CMAKE_SOURCE_DIR}/src/engine/common
+        ${CMAKE_SOURCE_DIR}/src/engine/map
+        ${CMAKE_SOURCE_DIR}/src/events
+        ${CMAKE_SOURCE_DIR}/src/layout
+        ${CMAKE_SOURCE_DIR}/src/model
+        ${CMAKE_SOURCE_DIR}/src/scripting
+        ${CMAKE_SOURCE_DIR}/src/services
+        ${CMAKE_SOURCE_DIR}/src/util
+)
+
+target_compile_definitions(${TESTS_PROJECT_NAME} PRIVATE ${_compile_definitions} TESTING_ENABLED)
+target_link_libraries(
+        ${TESTS_PROJECT_NAME} PRIVATE
+        IMGUI
+        PNG::PNG
+        SDL2::SDL2
+        SDL2_ttf::SDL2_ttf
+        SDL2_image::SDL2_image
+        libnoise::libnoise
+        ZLIB::ZLIB
+)
+
+if (ENABLE_AUDIO)
+    target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE OpenAL::OpenAL VorbisFile::VorbisFile)
+    target_compile_definitions(${TESTS_PROJECT_NAME} PRIVATE USE_AUDIO)
+endif ()
+
+if (USE_MICROPROFILE)
+    target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE Microprofile::Microprofile)
+    target_compile_definitions(${TESTS_PROJECT_NAME} PRIVATE MICROPROFILE_ENABLED MICROPROFILE_GPU_TIMERS=0)
+endif ()
+
+if (USE_ANGELSCRIPT)
+    target_include_directories(${TESTS_PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/external/as_add_on)
+    target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE Angelscript::angelscript)
+    target_compile_definitions(${TESTS_PROJECT_NAME} PRIVATE USE_ANGELSCRIPT)
+endif ()
 
 # enable C++17
-set_target_properties(${TESTS_PROJECT_NAME} PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED YES
-  CXX_EXTENSIONS NO)
+set_target_properties(
+        ${TESTS_PROJECT_NAME} PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED YES
+        CXX_EXTENSIONS NO
+)
 
 catch_discover_tests(${TESTS_PROJECT_NAME})
 
 add_coverage(${TESTS_PROJECT_NAME})
 coverage_evaluate()
-
-if (ENABLE_COVERAGE)
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/gcov_reports)
-    add_custom_target(
-            copy_coverage
-            COMMAND find ${CMAKE_BINARY_DIR}/tests/CMakeFiles/Cytopia_Tests.dir/ -name '*.gcov' -exec cp {} ${CMAKE_BINARY_DIR}/gcov_reports "\;"
-    )
-endif ()

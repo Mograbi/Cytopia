@@ -4,18 +4,18 @@
 #include <chrono>
 #include <mutex>
 #include <functional>
-#include "../GameService.hxx"
 #include "../util/PriorityQueue.hxx"
+#include "../util/Singleton.hxx"
 
 using namespace std::chrono_literals;
 
 /**
  * @brief Game clock service. Implement two timers one real time timer and other game time timer.
- * Both timers provide possibility to add task which will be triggered after delay time run out.
+ * @details Both timers provide possibility to add task which will be triggered after delay time run out.
  * Game timer represent timer running in game time.
  * The game time can be scaled providing possibility to speed up or slow down game.
  */
-class GameClock : public GameService
+class GameClock : public Singleton<GameClock>
 {
 private:
   using Clock = std::chrono::high_resolution_clock;
@@ -44,11 +44,9 @@ public:
   */
   static constexpr GameClockTime GameDay = 24 * GameHour;
 
-  GameClock(GameService::ServiceTuple &services) : GameService{services} {};
-
   /**
-  * @brief This function provide the tick for both clocks.
-  * It must be called frequently. Call frequency determines clock precision.
+  * @brief This function provides the tick for both clocks.
+  * @details It must be called frequently. Call frequency determines clock precision.
   */
   void tick(void);
 
@@ -82,6 +80,8 @@ public:
   */
   void setGameClockSpeed(float speedFactor);
 
+  float getGameClockSpeed() const { return m_speedFactor; }
+
   /**
   * @brief Remove all real time and game time clocks.
   */
@@ -89,7 +89,7 @@ public:
 
   /**
   * @brief Remove real/game time clock.
-  *        After it is removed successfully it is guarantied it will not trigger callback
+  *        After it is removed successfully it is guaranteed it will not trigger callback
   * @param hndl Handle of clock which should be removed.
   * @return true in case clock is successfully removed, otherwise false.
   */
@@ -133,11 +133,13 @@ private:
   std::mutex m_lock;
   // Provide way to return unique handle for each task.
   ClockTaskHndl m_unique_handle = 0U;
-  // Current number of the game ticks.
+  /// Current number of the game ticks.
   GameClockTime m_gameTicks = 0U;
-  // Last time of the game tick.
+  /// Last time of the game tick.
   TimePoint m_lastGameTickTime = Clock::now();
-  // The current game tick duration on milliseconds.
+  /// The current game tick duration on milliseconds.
+
+  float m_speedFactor = 1.f;
   Clock::duration m_gameTickDuration = std::chrono::milliseconds(DefaultGameTickDuration);
 
   /**

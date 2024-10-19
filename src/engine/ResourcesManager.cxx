@@ -15,13 +15,7 @@ using json = nlohmann::json;
 
 ResourcesManager::ResourcesManager() { loadUITexture(); }
 
-ResourcesManager::~ResourcesManager()
-{
-  debug_scope {
-    LOG(LOG_DEBUG) << "Destroying ResourcesManager"; 
-  }
-  flush(); 
-}
+ResourcesManager::~ResourcesManager() { flush(); }
 
 void ResourcesManager::loadTexture(const std::string &id, const std::string &fileName)
 {
@@ -47,31 +41,20 @@ void ResourcesManager::loadUITexture()
   }
 }
 
-SDL_Texture *ResourcesManager::getUITexture(const std::string &uiElement, int buttonState)
+SDL_Texture *ResourcesManager::getUITexture(const std::string &uiElement, const std::string& uiTextureType)
 {
-  std::string texture;
-  switch (buttonState)
+  if (m_uiTextureMap[uiElement].find(uiTextureType) != m_uiTextureMap[uiElement].end())
   {
-  case BUTTONSTATE_CLICKED:
-    texture = "Texture_Clicked";
-    break;
-  case BUTTONSTATE_HOVERING:
-    texture = "Texture_Hovering";
-    break;
-  default:
-    texture = "Texture_Default";
+    return m_uiTextureMap[uiElement].at(uiTextureType);
   }
-  if (m_uiTextureMap[uiElement].find(texture) != m_uiTextureMap[uiElement].end())
-  {
-    return m_uiTextureMap[uiElement].at(texture);
-  }
-  if (m_uiTextureMap[uiElement].find("Texture_Default") != m_uiTextureMap[uiElement].end())
-  {
-    // If no texture is found, check if there's a default texture
-    return m_uiTextureMap[uiElement].at("Texture_Default");
-  }
+
   throw UIError(TRACE_INFO "No texture found for " + uiElement);
-  return nullptr;
+}
+
+SDL_Texture *ResourcesManager::getUITexture(const std::string &uiElement)
+{
+  static const std::string defaultTextureType = "Texture_Default";
+  return getUITexture(uiElement, defaultTextureType);
 }
 
 SDL_Texture *ResourcesManager::getTileTexture(const std::string &id)
@@ -81,7 +64,6 @@ SDL_Texture *ResourcesManager::getTileTexture(const std::string &id)
     return m_tileTextureMap.at(id);
   }
   throw UIError(TRACE_INFO "No texture found for " + id);
-  return nullptr;
 }
 
 SDL_Surface *ResourcesManager::getTileSurface(const std::string &id)
@@ -91,7 +73,6 @@ SDL_Surface *ResourcesManager::getTileSurface(const std::string &id)
     return m_surfaceMap.at(id);
   }
   throw UIError(TRACE_INFO "No surface found for " + id);
-  return nullptr;
 }
 
 SDL_Surface *ResourcesManager::createSurfaceFromFile(const std::string &fileName)
@@ -107,7 +88,6 @@ SDL_Surface *ResourcesManager::createSurfaceFromFile(const std::string &fileName
     return surface;
 
   throw ConfigurationError(TRACE_INFO "Could not load Texture from file " + fName + ": " + IMG_GetError());
-  return nullptr;
 }
 
 SDL_Texture *ResourcesManager::createTextureFromSurface(SDL_Surface *surface)
@@ -118,7 +98,6 @@ SDL_Texture *ResourcesManager::createTextureFromSurface(SDL_Surface *surface)
     return texture;
 
   throw UIError(TRACE_INFO "Texture could not be created! SDL Error: " + string{SDL_GetError()});
-  return nullptr;
 }
 
 void ResourcesManager::flush()
@@ -143,4 +122,20 @@ void ResourcesManager::flush()
     }
   }
   m_uiTextureMap.clear();
+}
+
+SDL_Color ResourcesManager::getColorOfPixelInSurface(const std::string &tileID, int x, int y)
+{
+  SDL_Color Color{0, 0, 0, SDL_ALPHA_TRANSPARENT};
+  // create and initialize a variable within the condition
+  if (SDL_Surface *surface = getTileSurface(tileID); surface)
+  {
+    const int bpp = surface->format->BytesPerPixel;
+    Uint8 *p = &static_cast<Uint8 *>(surface->pixels)[y * surface->pitch + x * bpp];
+    const Uint32 pixel = *reinterpret_cast<Uint32 *>(p);
+
+    SDL_GetRGBA(pixel, surface->format, &Color.r, &Color.g, &Color.b, &Color.a);
+  }
+
+  return Color;
 }
