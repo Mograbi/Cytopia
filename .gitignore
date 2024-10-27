@@ -1,5 +1,6 @@
 build/*
 build-mixer-only/*
+target/*
 
 # ignore CLion generated directory
 .idea
@@ -16,7 +17,7 @@ cmake-build-*
 
 #ignore .exe, .dll and .so to be able to use the TileDataEditor in the source directory
 *.exe
-*.dll
+/*.dll
 *.so
 TileDataEditor
 
