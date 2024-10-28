@@ -1,13 +1,47 @@
 use sdl2::event::Event;
+use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
-use sdl2::rect::{Rect, Point};
+use sdl2::rect::{Rect};
 use sdl2::render::{TextureCreator, WindowCanvas};
 use sdl2::video::WindowContext;
 use sdl2::Sdl;
+use tile_data::TileData;
 use std::env;
 use std::path::Path;
 use std::time::Duration;
+
 mod settings;
+mod tile_data;
+
+const TILE_WIDTH: u32 = 32;
+const TILE_HEIGHT: u32 = 23;
+const TILESET_WIDTH: u32 = 16; // 16 tiles in a row
+
+fn draw_tile(
+    canvas: &mut WindowCanvas,
+    texture_creator: &TextureCreator<WindowContext>,
+    index: u32,
+    x: i32,
+    y: i32,
+) -> Result<(), String> {
+    if index >= TILESET_WIDTH {
+        return Err(format!("Invalid tile index: {}", index));
+    }
+
+    let texture = texture_creator.load_texture("data/resources/images/terrain/terrain_grass.png")?;
+
+    let tile_x = (index % TILESET_WIDTH) * TILE_WIDTH;
+    let tile_y = 0; // All tiles are in the first row
+
+    let mut src_rect = Rect::new(tile_x as i32, tile_y as i32, TILE_WIDTH, TILE_HEIGHT);
+    let mut dest_rect = Rect::new(x, y, TILE_WIDTH, TILE_HEIGHT);
+
+    canvas.copy(&texture, src_rect, dest_rect).ok().unwrap();
+
+    // canvas.copy(tileset, Some(src_rect), Some(dest_rect))?;
+
+    Ok(())
+}
 
 fn render(
     canvas: &mut WindowCanvas,
@@ -31,6 +65,8 @@ fn render(
 
     let target = Rect::new(10, 0, 200, 100);
     canvas.copy(&texture, None, target)?;
+    draw_tile(canvas, texture_creator, 0, 370, 277);
+    draw_tile(canvas, texture_creator, 1, 403, 277);
 
     canvas.present();
     Ok(())
@@ -58,6 +94,10 @@ fn main() -> Result<(), String> {
 
     let mut canvas: WindowCanvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
+
+    let tile_list: Vec<TileData> = serde_json::from_str(
+        &std::fs::read_to_string("data/resources/data/tileData.json").unwrap(),
+    ).unwrap();
 
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
     let font_path: &Path = Path::new(&"data/resources/fonts/pixelFJ8pt1.ttf");
