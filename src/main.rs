@@ -6,6 +6,7 @@ use sdl2::render::{TextureCreator, WindowCanvas};
 use sdl2::video::WindowContext;
 use sdl2::Sdl;
 use tile_data::TileData;
+use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 use std::time::Duration;
@@ -47,6 +48,7 @@ fn render(
     canvas: &mut WindowCanvas,
     texture_creator: &TextureCreator<WindowContext>,
     font: &sdl2::ttf::Font,
+    tile_map: &HashMap<String, TileData>,
 ) -> Result<(), String> {
     let color = Color::RGB(0, 0, 0);
     canvas.set_draw_color(color);
@@ -72,6 +74,18 @@ fn render(
     Ok(())
 }
 
+fn get_tile_map() -> HashMap<String, TileData> {
+    let tile_list: Vec<TileData> = serde_json::from_str(
+        &std::fs::read_to_string("data/resources/data/tileData.json").unwrap(),
+    ).unwrap();
+
+    let mut tile_map: HashMap<String, TileData> = HashMap::new();
+    for tile in tile_list {
+        tile_map.insert(tile.id.clone(), tile);
+    }
+    tile_map
+}
+
 fn main() -> Result<(), String> {
     let context: Sdl = sdl2::init().unwrap();
     let video_subsystem = context.video().unwrap();
@@ -95,9 +109,7 @@ fn main() -> Result<(), String> {
     let mut canvas: WindowCanvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
 
-    let tile_list: Vec<TileData> = serde_json::from_str(
-        &std::fs::read_to_string("data/resources/data/tileData.json").unwrap(),
-    ).unwrap();
+    let tile_map = get_tile_map();
 
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
     let font_path: &Path = Path::new(&"data/resources/fonts/pixelFJ8pt1.ttf");
@@ -158,7 +170,7 @@ fn main() -> Result<(), String> {
                 _ => {}
             }
         }
-        render(&mut canvas, &texture_creator, &font);
+        render(&mut canvas, &texture_creator, &font, &tile_map)?;
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
