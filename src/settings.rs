@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{env, fs};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
@@ -23,7 +23,7 @@ struct Audio {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ConfigFiles {
+pub struct ConfigFiles {
     audio_config_json_file: String,
     pub tile_data_json_file: String,
     ui_data_json_file: String,
@@ -31,10 +31,10 @@ struct ConfigFiles {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Game {
+pub struct Game {
     biome: String,
     language: String,
-    map_size: u32,
+    pub map_size: u32,
     max_elevation_height: u32,
     show_buildings_in_blueprint: bool,
     zone_layer_transparency: f32,
@@ -81,9 +81,12 @@ impl Graphics {
 }
 
 impl Settings {
-  pub fn load_from_file(file_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
-      let file_contents = fs::read_to_string(file_path)?;
-      let object: Settings = serde_json::from_str(&file_contents)?;
-      Ok(object)
-  }
+    pub fn load_from_file() -> Result<Self, Box<dyn std::error::Error>> {
+        let settings_path = env::current_dir()
+            .unwrap()
+            .join("data/resources/settings.json");
+        let file_contents = fs::read_to_string(settings_path)?;
+        let object: Settings = serde_json::from_str(&file_contents)?;
+        Ok(object)
+    }
 }

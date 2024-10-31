@@ -1,34 +1,29 @@
-use std::{collections::HashMap, env, path::Path, time::Duration};
-
 use sdl2::{
     event::Event,
-    image::LoadTexture,
     keyboard::Keycode,
     pixels::Color,
     rect::Rect,
-    render::{Texture, TextureCreator, WindowCanvas},
+    render::{TextureCreator, WindowCanvas},
     video::WindowContext,
 };
-
+use std::{env, path::Path, time::Duration};
 mod settings;
-mod tile_data;
 mod sprite;
-
-use tile_data::TileData;
+mod tile_data;
+use noise::{NoiseFn, Perlin};
 use rand::Rng;
+mod tile_manager;
 
 const TILE_WIDTH: u32 = 32;
 const TILE_HEIGHT: u32 = 23;
 const TILESET_WIDTH: u32 = 16; // 16 tiles in a row
-
-use noise::{Perlin, NoiseFn};
 
 struct NoiseMap {
     noise_map: Vec<Vec<f64>>,
 }
 
 impl NoiseMap {
-    fn generate(&mut self, size_x: usize, size_y: usize, random_seed: u32) {
+    fn generate(&mut self, size_x: u32, size_y: u32, random_seed: u32) {
         self.noise_map = Vec::new();
 
         let noise1 = Perlin::new(random_seed);
@@ -52,43 +47,18 @@ impl NoiseMap {
     }
 }
 
-fn get_tile_map(texture_creator: &TextureCreator<WindowContext>) -> HashMap<String, TileData> {
-    let tile_list: Vec<TileData> = serde_json::from_str(
-        &std::fs::read_to_string("data/resources/data/tileData.json").unwrap(),
-    )
-    .unwrap();
-
-    let mut tile_data = HashMap::new();
-    let mut texture_map: HashMap<String, Texture> = HashMap::new();
-    for tile in &tile_list {
-        println!("Tile: {}", tile.title);
-        tile_data.insert(tile.id.clone(), tile.clone());
-        // data / filename
-
-        let texture = texture_creator.load_texture(&format!("data/{}", tile.tiles.file_name)).unwrap();
-        texture_map.insert(tile.id.clone(), texture);
-    }
-
-    tile_list
-        .into_iter()
-        .map(|tile| (tile.id.clone(), tile))
-        .collect()
-}
-
 fn draw_tile(
     canvas: &mut WindowCanvas,
-    texture_creator: &TextureCreator<WindowContext>,
     index: u32,
     x: i32,
     y: i32,
+    tile_manager: &tile_manager::TileManager,
 ) -> Result<(), String> {
     if index >= TILESET_WIDTH {
         return Err(format!("Invalid tile index: {}", index));
     }
 
-    let texture =
-        texture_creator.load_texture("data/resources/images/terrain/terrain_grass.png")?;
-
+    let texture = tile_manager.get_texture("liquid_MurkyWater").unwrap();
     let tile_x = (index % TILESET_WIDTH) * TILE_WIDTH;
     let tile_y = 0; // All tiles are in the first row
 
@@ -104,7 +74,7 @@ fn render(
     canvas: &mut WindowCanvas,
     texture_creator: &TextureCreator<WindowContext>,
     font: &sdl2::ttf::Font,
-    tile_map: &HashMap<String, TileData>,
+    tile_manager: &tile_manager::TileManager,
 ) -> Result<(), String> {
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
@@ -121,8 +91,8 @@ fn render(
     canvas.copy(&texture, None, target)?;
 
     // Draw tiles (example)
-    draw_tile(canvas, texture_creator, 0, 370, 277)?;
-    draw_tile(canvas, texture_creator, 1, 403, 277)?;
+    draw_tile(canvas, 0, 370, 277, tile_manager)?;
+    draw_tile(canvas, 1, 403, 277, tile_manager)?;
 
     canvas.present();
     Ok(())
@@ -157,13 +127,7 @@ fn main() -> Result<(), String> {
     let context = sdl2::init()?;
     let video_subsystem = context.video()?;
 
-    let settings_path = env::current_dir()
-        .unwrap()
-        .join("data/resources/settings.json");
-    let settings = settings::Settings::load_from_file(
-        settings_path.to_str().ok_or("Invalid path")?, // More informative error
-    )
-    .unwrap();
+    let settings = settings::Settings::load_from_file().unwrap();
     let screen_width = settings.graphics.get_width();
     let screen_height = settings.graphics.get_height();
 
@@ -175,14 +139,15 @@ fn main() -> Result<(), String> {
 
     let mut canvas: WindowCanvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
-
-    let tile_map = get_tile_map(&texture_creator);
+    let mut tile_manager = tile_manager::TileManager::builder();
+    tile_manager.init(&texture_creator, &settings);
 
     let mut noise_map = NoiseMap {
         noise_map: Vec::new(),
     };
     let random_seed: u32 = Rng::gen(&mut rand::thread_rng());
-    noise_map.generate(128, 128, random_seed);
+    // noise_map.generate(settings.game.map_size, settings.game.map_size, random_seed);
+    noise_map.generate(10, 10, random_seed);
 
     dbg!(noise_map.noise_map);
 
@@ -200,7 +165,7 @@ fn main() -> Result<(), String> {
             break 'running;
         }
 
-        render(&mut canvas, &texture_creator, &font, &tile_map)?;
+        render(&mut canvas, &texture_creator, &font, &tile_manager)?;
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
