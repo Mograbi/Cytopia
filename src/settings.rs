@@ -25,7 +25,7 @@ struct Audio {
 #[derive(Serialize, Deserialize, Debug)]
 struct ConfigFiles {
     audio_config_json_file: String,
-    tile_data_json_file: String,
+    pub tile_data_json_file: String,
     ui_data_json_file: String,
     ui_layout_json_file: String,
 }
