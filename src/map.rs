@@ -48,7 +48,6 @@ impl Map {
             let y = i / self.width;
             let x = i % self.width;
             let raw_height = terrain_height_perlin.get([x as f64 * 32.0, y as f64 * 32.0, 0.5]);
-            println!("raw_height: {}", raw_height);
             if raw_height < 3.0 {
                 self.nodes.push(MapNode {
                     x,
