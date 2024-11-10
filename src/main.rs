@@ -107,7 +107,8 @@ fn draw_tile(
 
     let vec: Vector2 = to_screen_coordinate(Vector2 { x: x as f32, y: y as f32 });
     let src_rect = Rect::new(tile_x as i32, tile_y as i32, TILE_WIDTH, TILE_HEIGHT);
-    let dest_rect = Rect::new(vec.x as i32, vec.y as i32, TILE_WIDTH, TILE_HEIGHT);
+    // TODO: check 300 offset here
+    let dest_rect = Rect::new(vec.x as i32 + 300, vec.y as i32, TILE_WIDTH, TILE_HEIGHT);
 
     canvas.copy(&texture, src_rect, dest_rect)?;
 
@@ -116,8 +117,7 @@ fn draw_tile(
 
 fn render(
     canvas: &mut WindowCanvas,
-    texture_creator: &TextureCreator<WindowContext>,
-    font: &sdl2::ttf::Font,
+    settings: &Settings,
     map: &Map,
     tile_manager: &tile_manager::TileManager,
 ) -> Result<(), String> {
@@ -136,7 +136,7 @@ fn render(
     // canvas.copy(&texture, None, target)?;
 
     // Draw tiles (example)
-    for i in 0..128*128 {
+    for i in 0..settings.game.map_size * settings.game.map_size {
         let (x, y) = map.get_tile_coords(i);
         draw_tile(canvas, 0, x, y, tile_manager, &map.get_tile_id(i))?;
     }
@@ -150,7 +150,8 @@ fn handle_events(event_pump: &mut sdl2::EventPump) -> Result<bool, String> {
         match event {
             Event::Quit { .. }  => return Ok(false),
             Event::MouseMotion { x, y, .. } => {
-                println!("Mouse moved: x={}, y={}", x, y);
+                let vec = to_grid_coordinate(Vector2 { x: x as f32, y: y as f32 });
+                println!("Mouse moved: x={}, y={}, gridX={}, gridY={}", x, y, vec.x, vec.y);
             }
             Event::MouseButtonDown { x, y, .. } => {
                 println!("Mouse button pressed: x={}, y={}", x, y);
@@ -210,7 +211,7 @@ fn main() -> Result<(), String> {
             break 'running;
         }
 
-        render(&mut canvas, &texture_creator, &font, &map,  &tile_manager)?;
+        render(&mut canvas, &settings, &map,  &tile_manager).expect("Failed to render");
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }

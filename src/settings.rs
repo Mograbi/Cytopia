@@ -34,7 +34,7 @@ pub struct ConfigFiles {
 pub struct Game {
     biome: String,
     language: String,
-    pub map_size: u16,
+    pub map_size: u32,
     max_elevation_height: u32,
     show_buildings_in_blueprint: bool,
     zone_layer_transparency: f32,

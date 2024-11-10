@@ -5,21 +5,21 @@ use noise::ScaleBias;
 use rand::Error;
 
 struct MapNode {
-    x: u16,
-    y: u16,
-    z: u16,
+    x: u32,
+    y: u32,
+    z: u32,
     tile_id: String,
 }
 
 pub struct Map {
-    width: u16,
-    height: u16,
+    width: u32,
+    height: u32,
     pub nodes: Vec<MapNode>,
     seed: u32
 }
 
 impl Map {
-    pub fn builder(map_size: u16) -> Map {
+    pub fn builder(map_size: u32) -> Map {
         Map {
             width: map_size,
             height: map_size,
@@ -28,11 +28,11 @@ impl Map {
         }
     }
 
-    pub fn get_tile_id(&self, i: i32) -> String {
+    pub fn get_tile_id(&self, i: u32) -> String {
         self.nodes[i as usize].tile_id.clone()
     }
 
-    pub fn get_tile_coords(&self, i: i32) -> (i32, i32) {
+    pub fn get_tile_coords(&self, i: u32) -> (i32, i32) {
         (self.nodes[i as usize].x as i32, self.nodes[i as usize].y as i32)
     }
 
