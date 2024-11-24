@@ -13,6 +13,7 @@ mod sprite;
 mod tile_data;
 mod tile_manager;
 mod map;
+mod input_manager;
 use map::Map;
 
 const TILE_WIDTH: u32 = 32;
