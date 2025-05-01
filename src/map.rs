@@ -38,32 +38,70 @@ impl Map {
 
     pub fn init(&mut self) -> Result<(), Error> {
         self.seed = Map::generate_seed().expect("Failed to generate seed"); 
-        let mut terrain_height_perlin = Perlin::new(self.seed);
+        let perlin = Perlin::new(self.seed);
+        
+        // Use a larger scale for broader features (fewer, larger lakes)
+        let base_scale = 0.03;
+        // Secondary noise for detail variation
+        let detail_scale = 0.08;
 
-        let mut terrain_height_perlin_scaled: ScaleBias<f64, &Perlin, 2> = noise::ScaleBias::new(&terrain_height_perlin);
-        terrain_height_perlin_scaled = terrain_height_perlin_scaled.set_scale(0.5);
-        terrain_height_perlin_scaled = terrain_height_perlin_scaled.set_bias(-0.5);
-
+        // Pre-generate the height map
+        let mut height_map = vec![0.0; (self.width * self.height) as usize];
+        
+        // Generate base terrain
         for i in 0..self.width * self.height {
             let y = i / self.width;
             let x = i % self.width;
-            let raw_height = terrain_height_perlin.get([x as f64 * 32.0, y as f64 * 32.0, 0.5]);
-            if raw_height < 3.0 {
-                self.nodes.push(MapNode {
-                    x,
-                    y,
-                    z: 0,
-                    tile_id: "water".to_string(),
-                });
+            
+            // Combine two noise layers
+            let base_height = perlin.get([x as f64 * base_scale, y as f64 * base_scale]);
+            let detail = perlin.get([x as f64 * detail_scale + 1000.0, y as f64 * detail_scale + 1000.0]) * 0.3;
+            
+            // Combine and normalize height
+            let combined_height = (base_height + detail + 1.0) / 2.0;
+            height_map[i as usize] = combined_height;
+        }
+
+        // Process the height map to create more defined lakes
+        for i in 0..self.width * self.height {
+            let y = (i / self.width) as i32;
+            let x = (i % self.width) as i32;
+            let idx = i as usize;
+
+            // Make lakes more defined by creating sharper transitions
+            let height = height_map[idx];
+            let modified_height = if height < 0.2 {
+                // Create deeper lakes
+                height * 0.5
+            } else if height < 0.25 {
+                // Create steeper shores
+                0.3 + (height - 0.2) * 2.0
             } else {
-                self.nodes.push(MapNode {
-                    x,
-                    y,
-                    z: 0,
-                    tile_id: "terrain_grass".to_string(),
-                });
-            }
-        };
+                height
+            };
+
+            // Determine terrain type based on modified height
+            let tile_id = match modified_height {
+                h if h < 0.15 => "water",                // Deep lakes
+                h if h < 0.25 => "terrain_dirt",         // Shoreline/Beach
+                h if h < 0.7 => "terrain_soil",          // Plains/Grass
+                h if h < 0.85 => {                       // Forest areas
+                    if (x + y) % 2 == 0 {
+                        "tree_bamboo_dense"
+                    } else {
+                        "tree_Cottontop_medium"
+                    }
+                }
+                _ => "terrain_snow",                     // Mountain peaks
+            };
+
+            self.nodes.push(MapNode {
+                x: x as u32,
+                y: y as u32,
+                z: (modified_height * 10.0) as u32,
+                tile_id: tile_id.to_string(),
+            });
+        }
 
         Ok(())
     }

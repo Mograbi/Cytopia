@@ -5,6 +5,7 @@ use sdl2::{
     rect::Rect,
     render::{TextureCreator, WindowCanvas},
     video::WindowContext,
+    mouse::MouseButton,
 };
 use std::{path::Path, time::Duration};
 mod settings;
@@ -14,7 +15,9 @@ mod tile_data;
 mod tile_manager;
 mod map;
 mod input_manager;
+mod camera;
 use map::Map;
+use camera::Camera;
 
 const TILE_WIDTH: u32 = 32;
 const TILE_HEIGHT: u32 = 23;
@@ -60,33 +63,21 @@ const W: f32 = 32.0;
 const H: f32 = 32.0;
 
 fn to_screen_coordinate(tile: Vector2) -> Vector2 {
-    // Accounting for sprite size 
+    // For isometric tiles to connect properly, we need to position them closer together
+    // We'll use the exact tile dimensions to ensure tiles stay connected
     Vector2 {
-        x: tile.x * I_X * 0.5 * W + tile.y * J_X * 0.5 * W,
-        y: tile.x * I_Y * 0.5 * H + tile.y * J_Y * 0.5 * H,
+        x: (tile.x - tile.y) * TILE_WIDTH as f32 * 0.5,
+        y: (tile.x + tile.y) * TILE_HEIGHT as f32 * 0.25,
     }
 }
 
 // Going from screen coordinate to grid coordinate
-fn invert_matrix(a: f32, b: f32, c: f32, d: f32) -> Vector2 {
-    // Determinant
-    let det = 1.0 / (a * d - b * c);
-    Vector2 {
-        x: det * d,
-        y: det * -b,
-    }
-}
-
 fn to_grid_coordinate(screen: Vector2) -> Vector2 {
-    let a = I_X * 0.5 * W;
-    let b = J_X * 0.5 * W;
-    let c = I_Y * 0.5 * H;
-    let d = J_Y * 0.5 * H;
-
-    let inv = invert_matrix(a, b, c, d);
+    let x = screen.x / (TILE_WIDTH as f32 * 0.5);
+    let y = screen.y / (TILE_HEIGHT as f32 * 0.25);
     Vector2 {
-        x: screen.x * inv.x + screen.y * inv.y,
-        y: screen.x * inv.y + screen.y * inv.x, // Note: Reusing inv.x and inv.y here based on your original code
+        x: (x + y) / 2.0,
+        y: (y - x) / 2.0,
     }
 }
 
@@ -97,6 +88,8 @@ fn draw_tile(
     y: i32,
     tile_manager: &tile_manager::TileManager,
     tile_id: &str,
+    settings: &Settings,
+    camera: &Camera,
 ) -> Result<(), String> {
     if index >= TILESET_WIDTH {
         return Err(format!("Invalid tile index: {}", index));
@@ -104,12 +97,26 @@ fn draw_tile(
 
     let texture = tile_manager.get_texture(tile_id).unwrap();
     let tile_x = (13 % TILESET_WIDTH) * TILE_WIDTH;
-    let tile_y = 0; // All tiles are in the first row
+    let tile_y = 0;
 
+    // Calculate base isometric position
     let vec: Vector2 = to_screen_coordinate(Vector2 { x: x as f32, y: y as f32 });
     let src_rect = Rect::new(tile_x as i32, tile_y as i32, TILE_WIDTH, TILE_HEIGHT);
-    // TODO: check 300 offset here
-    let dest_rect = Rect::new(vec.x as i32 + 300, vec.y as i32, TILE_WIDTH, TILE_HEIGHT);
+    
+    let (window_width, window_height) = canvas.output_size().unwrap();
+    let center_x = (window_width / 2) as f32;
+    let center_y = (window_height / 3) as f32;
+    
+    // Scale the position by zoom before adding camera offset
+    let scaled_x = vec.x * camera.zoom;
+    let scaled_y = vec.y * camera.zoom;
+    
+    let dest_rect = Rect::new(
+        (scaled_x + center_x + camera.x) as i32,
+        (scaled_y + center_y + camera.y) as i32,
+        (TILE_WIDTH as f32 * camera.zoom) as u32,
+        (TILE_HEIGHT as f32 * camera.zoom) as u32
+    );
 
     canvas.copy(&texture, src_rect, dest_rect)?;
 
@@ -121,50 +128,57 @@ fn render(
     settings: &Settings,
     map: &Map,
     tile_manager: &tile_manager::TileManager,
+    camera: &Camera,
 ) -> Result<(), String> {
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
 
-    // Draw greeting
-    // let surface = font
-    //     .render("Hello, SDL2!")
-    //     .blended(Color::RGBA(255, 0, 0, 255))
-    //     .map_err(|e| e.to_string())?;
-    // let texture = texture_creator
-    //     .create_texture_from_surface(&surface)
-    //     .map_err(|e| e.to_string())?;
-    // let target = Rect::new(10, 0, 200, 100);
-    // canvas.copy(&texture, None, target)?;
-
-    // Draw tiles (example)
     for i in 0..settings.game.map_size * settings.game.map_size {
         let (x, y) = map.get_tile_coords(i);
-        draw_tile(canvas, 0, x, y, tile_manager, &map.get_tile_id(i))?;
+        draw_tile(canvas, 0, x, y, tile_manager, &map.get_tile_id(i), settings, camera)?;
     }
 
     canvas.present();
     Ok(())
 }
 
-fn handle_events(event_pump: &mut sdl2::EventPump) -> Result<bool, String> {
+fn handle_events(event_pump: &mut sdl2::EventPump, camera: &mut Camera, window_width: u32, window_height: u32) -> Result<bool, String> {
+    let mouse_state = event_pump.mouse_state();
+    let mouse_x = mouse_state.x();
+    let mouse_y = mouse_state.y();
+
     for event in event_pump.poll_iter() {
         match event {
-            Event::Quit { .. }  => return Ok(false),
+            Event::Quit { .. } => return Ok(false),
             Event::MouseMotion { x, y, .. } => {
-                let vec = to_grid_coordinate(Vector2 { x: x as f32, y: y as f32 });
-                println!("Mouse moved: x={}, y={}, gridX={}, gridY={}", x, y, vec.x, vec.y);
+                camera.update_drag(x, y);
             }
-            Event::MouseButtonDown { x, y, .. } => {
-                println!("Mouse button pressed: x={}, y={}", x, y);
+            Event::MouseButtonDown { x, y, mouse_btn, .. } => {
+                if mouse_btn == MouseButton::Right {
+                    camera.start_drag(x, y);
+                }
             }
-            Event::MouseButtonUp { x, y, .. } => {
-                println!("Mouse button released: x={}, y={}", x, y);
+            Event::MouseButtonUp { mouse_btn, .. } => {
+                if mouse_btn == MouseButton::Right {
+                    camera.stop_drag();
+                }
             }
-            Event::KeyDown { timestamp, window_id, keycode, scancode, keymod, repeat } => {
-                println!("Key pressed: timestamp={}, window_id={}, keycode={:?}, scancode={:?}, keymod={:?}, repeat={}", timestamp, window_id, keycode, scancode, keymod, repeat);
-                match keycode {
-                    Some(Keycode::Escape) => return Ok(false),
-                    _ => {}
+            Event::MouseWheel { y, .. } => {
+                let zoom_delta = if y > 0 { 1.1 } else if y < 0 { 0.9 } else { 1.0 };
+                if zoom_delta != 1.0 {
+                    let center_x = window_width as i32 / 2;
+                    let center_y = window_height as i32 / 3;
+                    
+                    // Adjust mouse position relative to the center
+                    let adjusted_x = mouse_x - center_x;
+                    let adjusted_y = mouse_y - center_y;
+                    
+                    camera.zoom_at_point(adjusted_x, adjusted_y, zoom_delta);
+                }
+            }
+            Event::KeyDown { keycode, .. } => {
+                if let Some(Keycode::Escape) = keycode {
+                    return Ok(false);
                 }
             }
             _ => {}
@@ -176,8 +190,8 @@ fn handle_events(event_pump: &mut sdl2::EventPump) -> Result<bool, String> {
 // --- Main Function ---
 
 fn main() -> Result<(), String> {
-    let context = sdl2::init()?;
-    let video_subsystem = context.video()?;
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
 
     let settings = Settings::load_from_file().expect("Failed to load settings file");
     let screen_width = settings.graphics.get_width();
@@ -189,11 +203,10 @@ fn main() -> Result<(), String> {
         .build()
         .unwrap();
 
-    let mut canvas: WindowCanvas = window.into_canvas().build().unwrap();
+    let mut canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
     let mut tile_manager = tile_manager::TileManager::builder();
     tile_manager.init(&texture_creator, &settings);
-
 
     let mut map = Map::builder(settings.game.map_size);
     map.init().expect("Failed to initialize map");
@@ -205,14 +218,15 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     font.set_style(sdl2::ttf::FontStyle::BOLD);
 
-    let mut event_pump = context.event_pump()?;
+    let mut event_pump = sdl_context.event_pump()?;
+    let mut camera = Camera::new();
 
     'running: loop {
-        if !handle_events(&mut event_pump)? {
+        if !handle_events(&mut event_pump, &mut camera, screen_width, screen_height)? {
             break 'running;
         }
 
-        render(&mut canvas, &settings, &map,  &tile_manager).expect("Failed to render");
+        render(&mut canvas, &settings, &map, &tile_manager, &camera)?;
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
