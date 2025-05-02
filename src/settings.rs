@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{env, fs};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
     pub settings_version: u32,
     pub audio: Audio,
@@ -12,7 +12,7 @@ pub struct Settings {
     pub debug: Debug,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Audio {
     audio_3d_status: bool,
     audio_channels: u32,
@@ -22,7 +22,7 @@ struct Audio {
     sound_effects_volume: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ConfigFiles {
     audio_config_json_file: String,
     pub tile_data_json_file: String,
@@ -30,7 +30,7 @@ pub struct ConfigFiles {
     ui_layout_json_file: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Game {
     biome: String,
     language: String,
@@ -40,7 +40,7 @@ pub struct Game {
     zone_layer_transparency: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Graphics {
     full_screen: bool,
     full_screen_mode: u32,
@@ -48,13 +48,13 @@ pub struct Graphics {
     vsync: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Resolution {
     screen_height: u32,
     screen_width: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct UserInterface {
     build_menu_position: String,
     font_filename: String,
@@ -64,7 +64,7 @@ struct UserInterface {
     default_font_size: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Debug {
     write_error_log_to_file: bool,
 }

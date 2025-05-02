@@ -10,6 +10,8 @@ use crate::tile_data::{TileData, TileType};
 pub struct TileManager<'a> {
     tile_map: HashMap<String, TileData>,
     texture_map: HashMap<String, Texture<'a>>,
+    texture_creator: Option<&'a TextureCreator<WindowContext>>,
+    textures: Vec<Texture<'a>>,
 }
 
 impl<'a> TileManager<'a> {
@@ -37,7 +39,7 @@ impl<'a> TileManager<'a> {
     self.tile_map.get(id)
   }
 
-  pub fn get_texture(&self, id: &str) -> Option<&Texture> {
+  pub fn get_texture_by_id(&self, id: &str) -> Option<&Texture> {
     self.texture_map.get(id)
   }
 
@@ -45,8 +47,10 @@ impl<'a> TileManager<'a> {
     TileManager {
         tile_map: HashMap::new(),
         texture_map: HashMap::new(),
+        texture_creator: None,
+        textures: Vec::new(),
     }
-  } 
+  }
 
   // Constructor with builder pattern
   pub fn builder() -> TileManager<'a> {
@@ -71,4 +75,30 @@ impl<'a> TileManager<'a> {
     }
   }
 
+  pub fn new(texture_creator: &'a TextureCreator<WindowContext>) -> Result<Self, String> {
+    let mut textures = Vec::new();
+    
+    // Load grass texture
+    let grass_texture = texture_creator.load_texture("data/resources/tiles/grass.png")?;
+    textures.push(grass_texture);
+
+    // Load dirt texture
+    let dirt_texture = texture_creator.load_texture("data/resources/tiles/dirt.png")?;
+    textures.push(dirt_texture);
+
+    Ok(Self {
+        tile_map: HashMap::new(),
+        texture_map: HashMap::new(),
+        texture_creator: Some(texture_creator),
+        textures,
+    })
+  }
+
+  pub fn get_texture_by_index(&self, index: usize) -> Option<&Texture> {
+    self.textures.get(index)
+  }
+
+  pub fn texture_creator(&self) -> &'a TextureCreator<WindowContext> {
+    self.texture_creator.expect("TextureCreator is not set!")
+  }
 }

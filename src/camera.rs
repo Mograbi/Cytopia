@@ -42,18 +42,45 @@ impl Camera {
 
     pub fn zoom_at_point(&mut self, screen_x: i32, screen_y: i32, zoom_delta: f32) {
         let old_zoom = self.zoom;
-        self.zoom = (self.zoom * zoom_delta).clamp(0.5, 3.0);
-
-        // Convert screen coordinates to world coordinates before zoom
+        let new_zoom = (self.zoom * zoom_delta).clamp(0.5, 3.0);
+        
+        // Calculate the world position of the mouse cursor
         let world_x = (screen_x as f32 - self.x) / old_zoom;
         let world_y = (screen_y as f32 - self.y) / old_zoom;
+        
+        // Calculate how the world position would change with the new zoom
+        let new_screen_x = world_x * new_zoom + self.x;
+        let new_screen_y = world_y * new_zoom + self.y;
+        
+        // Adjust camera position to keep the cursor point fixed
+        self.x += screen_x as f32 - new_screen_x;
+        self.y += screen_y as f32 - new_screen_y;
+        
+        // Update zoom
+        self.zoom = new_zoom;
+    }
 
-        // Calculate how the world point moves after zoom
-        let dx = world_x * (self.zoom - old_zoom);
-        let dy = world_y * (self.zoom - old_zoom);
+    pub fn get_x(&self) -> f32 {
+        self.x
+    }
 
-        // Adjust camera to keep the mouse point fixed on screen
-        self.x -= dx;
-        self.y -= dy;
+    pub fn get_y(&self) -> f32 {
+        self.y
+    }
+
+    pub fn get_zoom(&self) -> f32 {
+        self.zoom
+    }
+
+    pub fn set_x(&mut self, x: f32) {
+        self.x = x;
+    }
+
+    pub fn set_y(&mut self, y: f32) {
+        self.y = y;
+    }
+
+    pub fn set_zoom(&mut self, zoom: f32) {
+        self.zoom = zoom.max(0.1).min(10.0);
     }
 } 

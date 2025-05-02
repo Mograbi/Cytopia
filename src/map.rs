@@ -1,5 +1,5 @@
 use std::time::{SystemTime, UNIX_EPOCH};
-use noise::{NoiseFn, Perlin};
+use noise::{NoiseFn, Perlin, OpenSimplex};
 
 use noise::ScaleBias;
 use rand::Error;
@@ -12,8 +12,9 @@ struct MapNode {
 }
 
 pub struct Map {
-    width: u32,
-    height: u32,
+    pub width: u32,
+    pub height: u32,
+    pub tiles: Vec<u32>,
     pub nodes: Vec<MapNode>,
     seed: u32
 }
@@ -23,6 +24,7 @@ impl Map {
         Map {
             width: map_size,
             height: map_size,
+            tiles: Vec::new(),
             nodes: Vec::new(),
             seed: 0
         }
@@ -112,5 +114,36 @@ impl Map {
             .unwrap()
             .subsec_nanos();
         Ok(nanos)
+    }
+
+    pub fn new(width: u32, height: u32) -> Result<Self, String> {
+        let mut tiles = vec![0; (width * height) as usize];
+        let noise = OpenSimplex::new(42);
+
+        for y in 0..height {
+            for x in 0..width {
+                let nx = x as f64 / width as f64;
+                let ny = y as f64 / height as f64;
+                let value = noise.get([nx, ny]);
+                let tile_index = if value > 0.0 { 1 } else { 0 };
+                tiles[(y * width + x) as usize] = tile_index;
+            }
+        }
+
+        Ok(Self {
+            width,
+            height,
+            tiles,
+            nodes: Vec::new(),
+            seed: 0
+        })
+    }
+
+    pub fn get_tile(&self, x: i32, y: i32) -> Option<u32> {
+        if x < 0 || y < 0 || x >= self.width as i32 || y >= self.height as i32 {
+            None
+        } else {
+            Some(self.tiles[(y * self.width as i32 + x) as usize])
+        }
     }
 }
